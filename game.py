@@ -68,7 +68,7 @@ class ZombieShooter(gym.Env):
 
         self.done = False
 
-        self.action_space = gym.spaces.Discrete(6)
+        self.action_space = gym.spaces.Discrete(7)
 
 
 
@@ -283,8 +283,6 @@ class ZombieShooter(gym.Env):
                 if(i != 0 and i != 1):
                     raise Exception("Invalid action entered for the Zombie Shooter environment. Values must be either 0 or 1")
                 
-            print(self.action_space.n)
-
             if len(action) != self.action_space.n:
                 raise Exception("Please ensure the action matches the target action space: [6]")
 
@@ -294,42 +292,35 @@ class ZombieShooter(gym.Env):
             right = bool(action[3])
             switch_gun = bool(action[4])
             fire = bool(action[5])
+            pause = bool(action[6])
             
             # Setting up the initial obs variables
-            observation, reward, truncated, info = "", 0, False, "" 
+            reward, truncated = 0, False 
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_TAB:
-                        self.gun_type = "single" if self.gun_type == "shotgun" else "shotgun"
-                        print(f"Switched to {self.gun_type} mode")
-                    elif event.key == pygame.K_SPACE:
-                        if self.gun_type == "single":
-                            self.fire_single_bullet()
-                        else:
-                            self.fire_shotgun_bullet()
-                    elif event.key == pygame.K_ESCAPE:
-                        self.toggle_pause()
+            if switch_gun:
+                self.gun_type = "single" if self.gun_type == "shotgun" else "shotgun"
+                print(f"Switched to {self.gun_type} mode")
+        
+            if fire:
+                if self.gun_type == "single":
+                    self.fire_single_bullet()
+                else:
+                    self.fire_shotgun_bullet()
+            
+            if pause:
+                self.toggle_pause()
 
             if self.paused:
                 return  # Skip the rest of the game loop if paused
 
-            player_moved = False
-
             if len(self.zombies) < self.max_zombie_count and random.randint(1, 100) < 3:  # 3% chance of spawning a zombie per frame
                 self.zombies.append(Zombie(world_height=self.world_height, world_width=self.world_width, size=80, speed=random.randint(1,self.zombie_top_speed)))  # Instantiate a new zombie
-
-            # Get key presses
-            keys = pygame.key.get_pressed()
                 
             new_player_x = self.player.x
-            if keys[pygame.K_a]:  # Left
+            if left:  # Left
                 new_player_x -= self.player.speed
                 self.player.direction = "left"
-            if keys[pygame.K_d]:  # Right
+            if right:  # Right
                 new_player_x += self.player.speed
                 self.player.direction = "right"
 
@@ -343,10 +334,10 @@ class ZombieShooter(gym.Env):
             
 
             new_player_y = self.player.y
-            if keys[pygame.K_w]:  # Up
+            if up:  # Up
                 new_player_y -= self.player.speed
                 self.player.direction = "up"
-            if keys[pygame.K_s]:  # Down
+            if down:  # Down
                 new_player_y += self.player.speed
                 self.player.direction = "down"
 

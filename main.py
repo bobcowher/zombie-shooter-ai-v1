@@ -20,7 +20,39 @@ game = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, wor
 
 # Game loop
 while True:
-    observation, reward, done, truncated, info = game.step(action=[1,0,0,0,0,0])
+
+
+    # Action Mapping
+    # [up, down, left, right, switch gun, fire]
+    # [W, S, A, D, TAB, SPACE]
+    action = [0,0,0,0,0,0,0]
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_TAB:
+                action[4] = 1
+            elif event.key == pygame.K_SPACE:
+                action[5] = 1
+            elif event.key == pygame.K_ESCAPE:
+                action[6] = 1
+
+    keys = pygame.key.get_pressed()
+
+    if keys[pygame.K_w]:
+        action[0] = 1
+    if keys[pygame.K_s]:
+        action[1] = 1
+    if keys[pygame.K_a]:  # Left
+        action[2] = 1
+    if keys[pygame.K_d]:  # Right
+        action[3] = 1
+
+
+
+    observation, reward, done, truncated, info = game.step(action=action)
 
     if reward != 0:
         print("Reward: ", reward)
