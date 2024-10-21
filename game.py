@@ -41,12 +41,19 @@ class HealthDrop:
 
 class ZombieShooter:
 
-    def __init__(self, window_width, window_height, world_height, world_width, fps, sound=False):
+    def __init__(self, window_width, window_height, world_height, world_width, fps, sound=False, render_mode="human"):
 
         self.window_width = window_width
         self.window_height = window_height
         self.world_height = world_height
         self.world_width = world_width
+
+        if render_mode == "human":
+            self.human = True
+            self.sound = sound
+        else:
+            self.human = False
+            self.sound = False
 
         self.treasure_chest = None  # No chest initially
         self.health_drop = None  # No health drop initially
@@ -89,7 +96,7 @@ class ZombieShooter:
 
         self.level = 1
 
-        self.sound = sound
+
 
         if self.sound:
             pygame.mixer.pre_init(44100, -16, 2, 64)
@@ -151,11 +158,13 @@ class ZombieShooter:
         self.bullets = []
 
         if self.level == 2:
-            self.vocals_2.play()
+            if self.sound:
+                self.vocals_2.play()
             self.walls = walls_2
             self.level_goal = 15
         elif self.level == 3:
-            self.vocals_3.play()
+            if self.sound:
+                self.vocals_3.play()
             self.walls = walls_3
             self.level_goal = 30
 
@@ -227,7 +236,9 @@ class ZombieShooter:
     def fire_single_bullet(self):
         bullet = SingleBullet(self.player.x, self.player.y, self.player.direction)
         self.bullets.append(bullet)
-        self.shotgun_blast.play()
+
+        if self.sound:
+            self.shotgun_blast.play()
 
         print("Space pressed. Bullet fired")
 
@@ -245,7 +256,8 @@ class ZombieShooter:
                 self.bullets.append(bullet)
 
             self.shotgun_ammo -= 1  # Decrease ammo
-            self.shotgun_blast.play()
+            if self.sound:
+                self.shotgun_blast.play()
             print(f"Shotgun fired. Remaining ammo: {self.shotgun_ammo}")
             self.out_of_ammo_message_displayed = False  # Hide the message
         else:
@@ -253,6 +265,9 @@ class ZombieShooter:
             self.out_of_ammo_message_displayed = True  # Show the message
 
     def step(self):
+            
+            # Setting up the initial obs variables
+            observation, reward, terminated, truncated, info = "", 0, False, False, "" 
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -333,6 +348,7 @@ class ZombieShooter:
                 if check_collision(zombie.rect, self.bullets):
                     bullet = get_collision(zombie.rect, self.bullets)  # Get the bullet causing the collision
                     self.player.score += 1
+                    reward += 1
                     self.bullets.remove(bullet)
 
                     if self.sound:
@@ -343,8 +359,10 @@ class ZombieShooter:
                         # Drop the heart exactly where the zombie was killed
                         self.health_drop = HealthDrop(zombie.rect.x, zombie.rect.y)
                         print(f"Heart dropped at ({zombie.rect.x}, {zombie.rect.y}) from zombie!")
+                
                 elif check_collision(zombie.rect, [self.player.rect]):
                     self.player.health -= 1
+                    reward -= 1
                     if self.sound:
                         self.zombie_bite.play()
                 else:
@@ -397,14 +415,15 @@ class ZombieShooter:
             if self.treasure_chest and self.player.rect.colliderect(self.treasure_chest.rect):
                 if not self.treasure_chest.is_opened:
                     self.treasure_chest.is_opened = True
-                    # self.health_drop = HealthDrop(self.treasure_chest.rect.x, self.treasure_chest.rect.y)
-                    
+                    reward += 1 # Reward for shotgun shell pickup. 
+
                     # Add shotgun ammo when chest is opened
                     self.shotgun_ammo = min(self.shotgun_ammo + 5, 20)  # Max ammo is 20
                     print(f"Ammo refilled! Current ammo: {self.shotgun_ammo}")
 
             if self.health_drop and self.player.rect.colliderect(self.health_drop.rect):
                 self.player.health = min(self.player.health + 1, 100)  # Increase health by 1 points
+                reward += 1 # Reward for health pickup
                 print("Heart collected! Health increased.")
                 self.health_drop = None  # Remove the heart
 
@@ -419,3 +438,5 @@ class ZombieShooter:
 
             if(self.level_goal <= self.player.score):
                 self.start_next_level()
+
+            return observation, reward, terminated, truncated, info
