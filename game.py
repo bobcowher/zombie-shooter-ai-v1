@@ -7,9 +7,9 @@ from util import check_collision, get_collision
 from walls import *
 import cv2
 import numpy as np
+import gymnasium as gym
 
-
-class ZombieShooter:
+class ZombieShooter(gym.Env):
 
     def __init__(self, window_width, window_height, world_height, world_width, fps, sound=False, render_mode="human"):
 
@@ -67,6 +67,8 @@ class ZombieShooter:
         self.level = 1
 
         self.done = False
+
+        self.action_space = gym.spaces.Discrete(6)
 
 
 
@@ -272,6 +274,26 @@ class ZombieShooter:
         return grayscale
 
     def step(self, action):
+            
+            # Action Mapping
+            # [up, down, left, right, switch gun, fire]
+            # [W, S, A, D, TAB, SPACE]
+            
+            for i in action:
+                if(i != 0 and i != 1):
+                    raise Exception("Invalid action entered for the Zombie Shooter environment. Values must be either 0 or 1")
+                
+            print(self.action_space.n)
+
+            if len(action) != self.action_space.n:
+                raise Exception("Please ensure the action matches the target action space: [6]")
+
+            up = bool(action[0])
+            down = bool(action[1])
+            left = bool(action[2])
+            right = bool(action[3])
+            switch_gun = bool(action[4])
+            fire = bool(action[5])
             
             # Setting up the initial obs variables
             observation, reward, truncated, info = "", 0, False, "" 

@@ -20,7 +20,7 @@ game = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, wor
 
 # Game loop
 while True:
-    observation, reward, done, truncated, info = game.step(action=[0,0,0])
+    observation, reward, done, truncated, info = game.step(action=[1,0,0,0,0,0])
 
     if reward != 0:
         print("Reward: ", reward)
