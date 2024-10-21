@@ -136,3 +136,36 @@ class Zombie:
         # zombie.rect = zombie_image.get_rect(center=(zombie.x, zombie.y))
         screen.blit(self.images[self.direction], (self.rect.x - camera_x, self.rect.y - camera_y))
 
+
+class TreasureChest:
+    def __init__(self, x, y):
+        self.closed_image = pygame.image.load("images/chest_closed.png").convert_alpha()
+        self.opened_image = pygame.image.load("images/chest_opened.png").convert_alpha()
+        
+        self.size = 50  # Adjust as needed
+        self.closed_image = pygame.transform.scale(self.closed_image, (self.size, self.size))
+        self.opened_image = pygame.transform.scale(self.opened_image, (self.size, self.size))
+
+        self.rect = pygame.Rect(x, y, self.size, self.size)
+        self.is_opened = False
+
+    def draw(self, screen, camera_x, camera_y):
+        if self.is_opened:
+            screen.blit(self.opened_image, (self.rect.x - camera_x, self.rect.y - camera_y))
+        else:
+            screen.blit(self.closed_image, (self.rect.x - camera_x, self.rect.y - camera_y))
+
+class HealthDrop:
+    def __init__(self, x, y):
+        self.image = pygame.image.load("images/heart.png").convert_alpha()  # Load heart image
+        self.size = 30  # Adjust size as needed
+        self.image = pygame.transform.scale(self.image, (self.size, self.size))  # Resize
+
+        # Set the heart's position based on the provided coordinates
+        self.x = x
+        self.y = y
+        self.rect = pygame.Rect(self.x, self.y, self.size, self.size)
+
+    def draw(self, screen, camera_x, camera_y):
+        # Draw the heart image with camera adjustments
+        screen.blit(self.image, (self.x - camera_x, self.y - camera_y))

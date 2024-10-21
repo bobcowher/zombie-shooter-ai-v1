@@ -1,43 +1,13 @@
 import pygame
 import sys
 from bullet import SingleBullet, ShotgunBullet
-from characters import Player, Zombie
+from assets import Player, Zombie, TreasureChest, HealthDrop
 import random
 from util import check_collision, get_collision
 from walls import *
+import cv2
+import numpy as np
 
-class TreasureChest:
-    def __init__(self, x, y):
-        self.closed_image = pygame.image.load("images/chest_closed.png").convert_alpha()
-        self.opened_image = pygame.image.load("images/chest_opened.png").convert_alpha()
-        
-        self.size = 50  # Adjust as needed
-        self.closed_image = pygame.transform.scale(self.closed_image, (self.size, self.size))
-        self.opened_image = pygame.transform.scale(self.opened_image, (self.size, self.size))
-
-        self.rect = pygame.Rect(x, y, self.size, self.size)
-        self.is_opened = False
-
-    def draw(self, screen, camera_x, camera_y):
-        if self.is_opened:
-            screen.blit(self.opened_image, (self.rect.x - camera_x, self.rect.y - camera_y))
-        else:
-            screen.blit(self.closed_image, (self.rect.x - camera_x, self.rect.y - camera_y))
-
-class HealthDrop:
-    def __init__(self, x, y):
-        self.image = pygame.image.load("images/heart.png").convert_alpha()  # Load heart image
-        self.size = 30  # Adjust size as needed
-        self.image = pygame.transform.scale(self.image, (self.size, self.size))  # Resize
-
-        # Set the heart's position based on the provided coordinates
-        self.x = x
-        self.y = y
-        self.rect = pygame.Rect(self.x, self.y, self.size, self.size)
-
-    def draw(self, screen, camera_x, camera_y):
-        # Draw the heart image with camera adjustments
-        screen.blit(self.image, (self.x - camera_x, self.y - camera_y))
 
 class ZombieShooter:
 
@@ -95,6 +65,8 @@ class ZombieShooter:
         self.max_zombie_count = 5
 
         self.level = 1
+
+        self.done = False
 
 
 
@@ -183,8 +155,11 @@ class ZombieShooter:
         pygame.time.wait(4000)
 
         if self.level > 3:
-            pygame.quit()
-            sys.exit()
+            self.done = True
+
+            # if self.human:
+            #     pygame.quit()
+            #     sys.exit()
 
     def game_over(self):
         # Render the "You Died" message
@@ -197,14 +172,18 @@ class ZombieShooter:
         # Update the display to show the message
         pygame.display.flip()
 
-        self.zombie_snarl.play()
+        self.done = True
+
+        if self.sound:
+            self.zombie_snarl.play()
 
         # Pause for 2 seconds (2000 milliseconds) before quitting
-        pygame.time.wait(2000)
+        if self.human:
+            pygame.time.wait(2000)
 
-        # Quit the game
-        pygame.quit()
-        sys.exit()
+            # # Quit the game
+            # pygame.quit()
+            # sys.exit()
 
     def fill_background(self):
         self.screen.fill(self.background_color)
@@ -264,10 +243,38 @@ class ZombieShooter:
             print("Out of shotgun ammo!")
             self.out_of_ammo_message_displayed = True  # Show the message
 
-    def step(self):
+    def _get_info(self):
+
+        
+        gun_type_num = 1 if "single" in self.gun_type else 2
+
+        return {
+            "health" : self.player.health,
+            "shotgun_ammo" : self.shotgun_ammo,
+            "gun_type" : self.gun_type,
+            "gun_type_num" : gun_type_num
+        }
+
+
+    def _get_obs(self):
+        # Capture the surface to an RGB array
+        screen_array = pygame.surfarray.array3d(self.screen)
+
+        # Transpose array from (width, height, channels) to (height, width, channels)
+        screen_array = np.transpose(screen_array, (1, 0, 2))
+
+        # Convert to BGR for OpenCV compatibility
+        screen_array_bgr = cv2.cvtColor(screen_array, cv2.COLOR_RGB2BGR)
+
+        # Convert to grayscale using OpenCV
+        grayscale = cv2.cvtColor(screen_array_bgr, cv2.COLOR_BGR2GRAY)
+
+        return grayscale
+
+    def step(self, action):
             
             # Setting up the initial obs variables
-            observation, reward, terminated, truncated, info = "", 0, False, False, "" 
+            observation, reward, truncated, info = "", 0, False, "" 
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -439,4 +446,4 @@ class ZombieShooter:
             if(self.level_goal <= self.player.score):
                 self.start_next_level()
 
-            return observation, reward, terminated, truncated, info
+            return self._get_obs(), reward, self.done, truncated, self._get_info()

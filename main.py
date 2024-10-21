@@ -1,11 +1,13 @@
 import pygame
 import sys
 import math
-from characters import Zombie, Player
+from assets import Zombie, Player
 from bullet import SingleBullet
 import random
 from util import *
 from game import ZombieShooter
+import cv2
+import os
 
 
 
@@ -18,8 +20,12 @@ game = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, wor
 
 # Game loop
 while True:
-    observation, reward, done, truncated, info = game.step()
+    observation, reward, done, truncated, info = game.step(action=[0,0,0])
 
     if reward != 0:
         print("Reward: ", reward)
+        print("Observation: ", observation)
+        print("Done: ", done)
+        print("Info: ", info)
+        # cv2.imwrite("temp/screen.jpg", observation)
 
