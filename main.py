@@ -2,7 +2,7 @@ import pygame
 import sys
 import math
 from characters import Zombie, Player
-from bullet import Bullet
+from bullet import SingleBullet
 import random
 from util import *
 from game import ZombieShooter
