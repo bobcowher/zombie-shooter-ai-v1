@@ -18,11 +18,7 @@ class Actor(nn.Module):
 
     def forward(self, x):
         # CNN forward pass
-        try:
-            x = F.relu(self.conv1(x))
-        except:
-            print(x)
-            SystemExit
+        x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
         x = x.view(x.size(0), -1)  # Flatten the feature map

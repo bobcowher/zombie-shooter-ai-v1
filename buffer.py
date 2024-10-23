@@ -27,7 +27,7 @@ class ReplayBuffer():
 
         self.state_memory[index] = state
         self.next_state_memory[index] = next_state
-        self.action_memory[index] = action
+        self.action_memory[index] = torch.tensor(action).detach().cpu()
         self.reward_memory[index] = reward
         self.terminal_memory[index] = done
 
