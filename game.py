@@ -57,6 +57,8 @@ class ZombieShooter(gym.Env):
 
         self.max_bullets = 20
 
+        self.last_observation = None
+
         self.reset()
 
         if self.sound:
@@ -266,19 +268,22 @@ class ZombieShooter(gym.Env):
 
 
     def _get_obs(self):
-        # Capture the surface to an RGB array
-        screen_array = pygame.surfarray.array3d(self.screen)
 
-        # Transpose array from (width, height, channels) to (height, width, channels)
-        screen_array = np.transpose(screen_array, (1, 0, 2))
+        if self.total_frames % 2 == 0:
+            # Capture the surface directly as a NumPy array
+            screen_array = pygame.surfarray.pixels3d(self.screen)
 
-        # Convert to BGR for OpenCV compatibility
-        screen_array_bgr = cv2.cvtColor(screen_array, cv2.COLOR_RGB2BGR)
+            # Resize first to reduce the amount of data being processed
+            downscaled_image = cv2.resize(screen_array, (256, 256))
 
-        # Convert to grayscale using OpenCV
-        grayscale = cv2.cvtColor(screen_array_bgr, cv2.COLOR_BGR2GRAY)
+            # Convert to grayscale using a weighted sum of RGB channels
+            grayscale = np.dot(downscaled_image[..., :3], [0.2989, 0.5870, 0.1140])
 
-        return grayscale
+            self.observation = grayscale.astype(np.uint8)
+        
+        self.total_frames += 1
+
+        return self.observation
 
     def step(self, action):
             

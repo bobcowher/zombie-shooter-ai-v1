@@ -30,7 +30,7 @@ for episode in range(episodes):
     observation, info = env.reset()
     episode_steps = 0
 
-    last_check_time = time.time()
+    episode_start_time = time.time()
 
     while not done:
 
@@ -46,11 +46,11 @@ for episode in range(episodes):
         episode_reward += reward
         episode_steps += 1
 
-        if episode_steps % 100 == 0:
-            cv2.imwrite("temp/screen.jpg", observation)
-            hundred_step_timer = time.time() - last_check_time
-            print(f"On step {episode_steps} of episode {episode}. Time Taken: {hundred_step_timer}")
-            last_check_time = time.time()
+        # if episode_steps % 100 == 0:
+        #     cv2.imwrite("temp/screen.jpg", observation)
+        #     hundred_step_timer = time.time() - last_check_time
+        #     print(f"On step {episode_steps} of episode {episode}. Time Taken: {hundred_step_timer}")
+        #     last_check_time = time.time()
 
         # if reward != 0:
         #     print("Reward: ", reward)
@@ -59,8 +59,11 @@ for episode in range(episodes):
         #     print("Info: ", info)
         #     cv2.imwrite("temp/screen.jpg", observation)
     
+    episode_time = time.time() - episode_start_time
     
     print(f"Completed episode {episode} with score {episode_reward}")
+    print(f"Episode Time: {episode_time:1f} seconds")
+    print(f"Episode Steps: {episode_steps}")
     
     
     
