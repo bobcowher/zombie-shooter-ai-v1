@@ -55,6 +55,8 @@ class ZombieShooter(gym.Env):
 
         self.action_space = gym.spaces.MultiBinary(7)
 
+        self.max_bullets = 20
+
         self.reset()
 
         if self.sound:
@@ -88,6 +90,7 @@ class ZombieShooter(gym.Env):
         self.player.health = 5
         self.max_zombie_count = 5
         self.zombie_top_speed = 1
+        self.total_frames = 0
 
         self.bullets = []
         self.zombies = []
@@ -257,7 +260,8 @@ class ZombieShooter(gym.Env):
             "health" : self.player.health,
             "shotgun_ammo" : self.shotgun_ammo,
             "gun_type" : self.gun_type,
-            "gun_type_num" : gun_type_num
+            "gun_type_num" : gun_type_num,
+            "bullets": len(self.bullets)
         }
 
 
@@ -304,7 +308,7 @@ class ZombieShooter(gym.Env):
                 self.gun_type = "single" if self.gun_type == "shotgun" else "shotgun"
                 # print(f"Switched to {self.gun_type} mode")
         
-            if fire:
+            if fire and len(self.bullets) < self.max_bullets:
                 if self.gun_type == "single":
                     self.fire_single_bullet()
                 else:
@@ -452,7 +456,7 @@ class ZombieShooter(gym.Env):
 
             # Update the display
             pygame.display.flip()
-
+                            
             if self.player.health <= 0:
                 self.game_over()
 

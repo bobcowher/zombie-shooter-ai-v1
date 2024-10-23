@@ -8,7 +8,7 @@ from util import *
 from game import ZombieShooter
 import cv2
 import os
-
+import time
 
 
 # Constants
@@ -30,6 +30,7 @@ for episode in range(episodes):
     observation, info = env.reset()
     episode_steps = 0
 
+    last_check_time = time.time()
 
     while not done:
 
@@ -47,7 +48,9 @@ for episode in range(episodes):
 
         if episode_steps % 100 == 0:
             cv2.imwrite("temp/screen.jpg", observation)
-            print(f"On step {episode_steps} of episode {episode}")
+            hundred_step_timer = time.time() - last_check_time
+            print(f"On step {episode_steps} of episode {episode}. Time Taken: {hundred_step_timer}")
+            last_check_time = time.time()
 
         # if reward != 0:
         #     print("Reward: ", reward)
@@ -55,6 +58,7 @@ for episode in range(episodes):
         #     print("Done: ", done)
         #     print("Info: ", info)
         #     cv2.imwrite("temp/screen.jpg", observation)
+    
     
     print(f"Completed episode {episode} with score {episode_reward}")
     
