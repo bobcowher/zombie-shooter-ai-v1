@@ -9,7 +9,7 @@ class SingleBullet:
         self.y = y
         self.direction = direction
 
-        print(f"Bullet launched in direction {direction}")
+        # print(f"Bullet launched in direction {direction}")
         self.rect = pygame.Rect(x, y, 10, 10)  # Size of the bullet
         self.bullet_speed = 10
         self.bullet_color = (192, 192, 192)
@@ -35,7 +35,7 @@ class ShotgunBullet:
         self.direction = direction
         self.angle_offset = math.radians(angle_offset)  # Convert offset to radians
 
-        print(f"Bullet launched in direction {direction} with angle offset {angle_offset}")
+        # print(f"Bullet launched in direction {direction} with angle offset {angle_offset}")
 
         self.rect = pygame.Rect(x, y, 10, 10)  # Bullet size
         self.bullet_speed = 10

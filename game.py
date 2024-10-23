@@ -8,6 +8,7 @@ from walls import *
 import cv2
 import numpy as np
 import gymnasium as gym
+import os
 
 class ZombieShooter(gym.Env):
 
@@ -24,6 +25,7 @@ class ZombieShooter(gym.Env):
         else:
             self.human = False
             self.sound = False
+            os.environ["SDL_VIDEODRIVER"] = "dummy" # Set dummy video driver to null route display
 
         self.treasure_chest = None  # No chest initially
         self.health_drop = None  # No health drop initially
@@ -45,32 +47,15 @@ class ZombieShooter(gym.Env):
         self.clock = pygame.time.Clock() 
         self.fps = fps
 
-        self.walls = walls_1
-
-        self.player = Player(world_height=self.world_height, world_width=self.world_width, walls=self.walls)
-
         self.background_color = (181, 101, 29) # Light brown
         self.wall_color = (1, 50, 32)
         self.border_color = (255, 0, 0)
 
         self.announcement_font = pygame.font.SysFont(None, 100)
 
-        self.bullets = []
-        self.zombies = []
+        self.action_space = gym.spaces.MultiBinary(7)
 
-        self.zombie_top_speed = 1
-
-        self.level_goal = 5
-
-        self.max_zombie_count = 5
-
-        self.level = 1
-
-        self.done = False
-
-        self.action_space = gym.spaces.Discrete(7)
-
-
+        self.reset()
 
         if self.sound:
             pygame.mixer.pre_init(44100, -16, 2, 64)
@@ -92,7 +77,25 @@ class ZombieShooter(gym.Env):
 
             self.vocals_1.play()
 
+
+    def reset(self):
+        self.done = False
+        self.level = 1
+        self.level_goal = 5
+        self.max_zombie_count = 5
+        self.walls = walls_1
+        self.player = Player(world_height=self.world_height, world_width=self.world_width, walls=self.walls)
+        self.player.health = 5
+        self.max_zombie_count = 5
+        self.zombie_top_speed = 1
+
+        self.bullets = []
+        self.zombies = []
+
+        return self._get_obs, self._get_info
+
     def toggle_pause(self):
+
         self.paused = not self.paused  # Toggle between paused and unpaused
 
         if self.paused:
@@ -221,7 +224,7 @@ class ZombieShooter(gym.Env):
         if self.sound:
             self.shotgun_blast.play()
 
-        print("Space pressed. Bullet fired")
+        # print("Space pressed. Bullet fired")
 
 
     def fire_shotgun_bullet(self):
@@ -239,10 +242,10 @@ class ZombieShooter(gym.Env):
             self.shotgun_ammo -= 1  # Decrease ammo
             if self.sound:
                 self.shotgun_blast.play()
-            print(f"Shotgun fired. Remaining ammo: {self.shotgun_ammo}")
+            # print(f"Shotgun fired. Remaining ammo: {self.shotgun_ammo}")
             self.out_of_ammo_message_displayed = False  # Hide the message
         else:
-            print("Out of shotgun ammo!")
+            # print("Out of shotgun ammo!")
             self.out_of_ammo_message_displayed = True  # Show the message
 
     def _get_info(self):
@@ -299,7 +302,7 @@ class ZombieShooter(gym.Env):
 
             if switch_gun:
                 self.gun_type = "single" if self.gun_type == "shotgun" else "shotgun"
-                print(f"Switched to {self.gun_type} mode")
+                # print(f"Switched to {self.gun_type} mode")
         
             if fire:
                 if self.gun_type == "single":
@@ -307,7 +310,7 @@ class ZombieShooter(gym.Env):
                 else:
                     self.fire_shotgun_bullet()
             
-            if pause:
+            if pause and self.human:
                 self.toggle_pause()
 
             if self.paused:
@@ -378,7 +381,7 @@ class ZombieShooter(gym.Env):
                     if random.randint(1, 100) <= 20:
                         # Drop the heart exactly where the zombie was killed
                         self.health_drop = HealthDrop(zombie.rect.x, zombie.rect.y)
-                        print(f"Heart dropped at ({zombie.rect.x}, {zombie.rect.y}) from zombie!")
+                        # print(f"Heart dropped at ({zombie.rect.x}, {zombie.rect.y}) from zombie!")
                 
                 elif check_collision(zombie.rect, [self.player.rect]):
                     self.player.health -= 1
@@ -439,12 +442,12 @@ class ZombieShooter(gym.Env):
 
                     # Add shotgun ammo when chest is opened
                     self.shotgun_ammo = min(self.shotgun_ammo + 5, 20)  # Max ammo is 20
-                    print(f"Ammo refilled! Current ammo: {self.shotgun_ammo}")
+                    # print(f"Ammo refilled! Current ammo: {self.shotgun_ammo}")
 
             if self.health_drop and self.player.rect.colliderect(self.health_drop.rect):
                 self.player.health = min(self.player.health + 1, 100)  # Increase health by 1 points
                 reward += 1 # Reward for health pickup
-                print("Heart collected! Health increased.")
+                # print("Heart collected! Health increased.")
                 self.health_drop = None  # Remove the heart
 
             # Update the display
@@ -454,7 +457,8 @@ class ZombieShooter(gym.Env):
                 self.game_over()
 
             # Cap the frame rate
-            self.clock.tick(self.fps)
+            if self.human:
+                self.clock.tick(self.fps)
 
             if(self.level_goal <= self.player.score):
                 self.start_next_level()
