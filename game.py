@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 import gymnasium as gym
 import os
+import torch
 
 class ZombieShooter(gym.Env):
 
@@ -279,7 +280,7 @@ class ZombieShooter(gym.Env):
             # Convert to grayscale using a weighted sum of RGB channels
             grayscale = np.dot(downscaled_image[..., :3], [0.2989, 0.5870, 0.1140])
 
-            self.observation = grayscale.astype(np.uint8)
+            self.observation = torch.from_numpy(grayscale).float().unsqueeze(0).float()
         
         self.total_frames += 1
 
