@@ -97,7 +97,7 @@ class ZombieShooter(gym.Env):
         self.bullets = []
         self.zombies = []
 
-        return self._get_obs, self._get_info
+        return self._get_obs(), self._get_info()
 
     def toggle_pause(self):
 
@@ -274,7 +274,7 @@ class ZombieShooter(gym.Env):
             screen_array = pygame.surfarray.pixels3d(self.screen)
 
             # Resize first to reduce the amount of data being processed
-            downscaled_image = cv2.resize(screen_array, (256, 256))
+            downscaled_image = cv2.resize(screen_array, (128, 128))
 
             # Convert to grayscale using a weighted sum of RGB channels
             grayscale = np.dot(downscaled_image[..., :3], [0.2989, 0.5870, 0.1140])

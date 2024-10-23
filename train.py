@@ -9,6 +9,7 @@ from game import ZombieShooter
 import cv2
 import os
 import time
+from buffer import ReplayBuffer
 
 
 # Constants
@@ -18,21 +19,26 @@ FPS = 60
 
 env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=False, render_mode="rgb")
 
+observation, info = env.reset()
+
+memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n)
+
 # Game loop
 
 episodes = 10
+max_episode_steps = 8000
 
 
 for episode in range(episodes):
 
     done = False
     episode_reward = 0
-    observation, info = env.reset()
+    state, info = env.reset()
     episode_steps = 0
 
     episode_start_time = time.time()
 
-    while not done:
+    while not done and episode_steps < max_episode_steps:
 
         # Action Mapping
         # [up, down, left, right, switch gun, fire]
@@ -41,10 +47,13 @@ for episode in range(episodes):
 
         action = env.action_space.sample()
 
-        observation, reward, done, truncated, info = env.step(action=action)
+        next_state, reward, done, truncated, info = env.step(action=action)
+
+        memory.store_transition(state, action, reward, next_state, done)
 
         episode_reward += reward
         episode_steps += 1
+
 
         # if episode_steps % 100 == 0:
         #     cv2.imwrite("temp/screen.jpg", observation)
