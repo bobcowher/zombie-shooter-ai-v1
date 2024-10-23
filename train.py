@@ -22,11 +22,13 @@ env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, worl
 
 episodes = 10
 
+
 for episode in range(episodes):
 
     done = False
     episode_reward = 0
     observation, info = env.reset()
+    episode_steps = 0
 
 
     while not done:
@@ -41,13 +43,21 @@ for episode in range(episodes):
         observation, reward, done, truncated, info = env.step(action=action)
 
         episode_reward += reward
+        episode_steps += 1
 
-        if reward != 0:
-            print("Reward: ", reward)
-            print("Observation: ", observation)
-            print("Done: ", done)
-            print("Info: ", info)
+        if episode_steps % 100 == 0:
             cv2.imwrite("temp/screen.jpg", observation)
+            print(f"On step {episode_steps} of episode {episode}")
+
+        # if reward != 0:
+        #     print("Reward: ", reward)
+        #     print("Observation: ", observation)
+        #     print("Done: ", done)
+        #     print("Info: ", info)
+        #     cv2.imwrite("temp/screen.jpg", observation)
+    
+    print(f"Completed episode {episode} with score {episode_reward}")
+    
     
     
     
