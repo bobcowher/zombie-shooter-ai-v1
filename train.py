@@ -16,6 +16,9 @@ import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
+import objgraph
+from pympler import asizeof
+
 
 # Constants
 WINDOW_WIDTH, WINDOW_HEIGHT = 1200, 800  # Visible game window size
@@ -41,6 +44,8 @@ gamma = 0.99
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 print(f"Starting training with device: {device}")
+
+print(observation.shape)
 
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
@@ -118,6 +123,7 @@ for episode in range(episodes):
     writer.add_scalar('Score', episode_reward, episode)
     writer.add_scalar('Epsilon', epsilon, episode)
 
+
     if epsilon > min_epsilon:
         epsilon *= epsilon_decay
     
@@ -128,9 +134,17 @@ for episode in range(episodes):
     
     episode_time = time.time() - episode_start_time
     
+    # objgraph.show_most_common_types(limit=10)
+
+    # objgraph.show_growth(limit=10)
+
+
+
     print(f"Completed episode {episode} with score {episode_reward}")
     print(f"Episode Time: {episode_time:1f} seconds")
     print(f"Episode Steps: {episode_steps}")
+    print(f"Bullets size: {len(env.bullets)}")
+    print(f"Memory Size: {asizeof.asizeof(memory) / (1024 * 1024 * 1024):2f} Gb")
     
 
 model.save_the_model()
