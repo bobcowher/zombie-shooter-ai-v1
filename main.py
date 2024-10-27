@@ -8,7 +8,8 @@ from util import *
 from game import ZombieShooter
 import cv2
 import os
-
+import numpy as np
+import torch
 
 
 # Constants
@@ -54,10 +55,27 @@ while True:
 
     observation, reward, done, truncated, info = game.step(action=action)
 
-    # if reward != 0:
-    #     print("Reward: ", reward)
-    #     print("Observation: ", observation)
-    #     print("Done: ", done)
-    #     print("Info: ", info)
-    #     cv2.imwrite("temp/screen.jpg", observation)
+    if reward != 0:
+        print("Reward: ", reward)
+        print("Observation: ", observation)
+        print("Done: ", done)
+        print("Info: ", info)
 
+        img_array = torch.clip(observation.squeeze(0), 0, 255).numpy().astype(np.uint8)
+
+        success = cv2.imwrite("temp/screen.jpg", img_array)
+
+        if not success:
+            print("Failed to write the image.")
+        else:
+            print("Image written successfully!")
+
+        memory_size_mb = img_array.nbytes / (1024 * 1024)
+
+        buffer_size = 200000
+
+        print(f"Memory: {memory_size_mb} Mb")
+
+        expected_buffer_size_gb = (memory_size_mb * buffer_size) / 1024
+
+        print(f"Expected Buffer Size: {expected_buffer_size_gb} Gb")

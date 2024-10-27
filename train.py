@@ -40,15 +40,17 @@ gamma = 0.99
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
+print(f"Starting training with device: {device}")
+
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
-model = Actor(action_dim=env.action_space.n, hidden_dim=256).to(device)
-target_model = Actor(action_dim=env.action_space.n, hidden_dim=256).to(device)
+model = Actor(action_dim=env.action_space.n, hidden_dim=512).to(device)
+target_model = Actor(action_dim=env.action_space.n, hidden_dim=512).to(device)
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
 
-summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn'
+summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}'
 writer = SummaryWriter(summary_writer_name)
 
 for episode in range(episodes):
@@ -74,6 +76,8 @@ for episode in range(episodes):
         memory.store_transition(state, action, reward, next_state, done)
 
         state = next_state
+
+        
 
         episode_reward += reward
         episode_steps += 1

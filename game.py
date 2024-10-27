@@ -473,6 +473,9 @@ class ZombieShooter(gym.Env):
             # Cap the frame rate
             if self.human:
                 self.clock.tick(self.fps)
+            else:
+                self.clock.tick(1000)
+
 
             if(self.level_goal <= self.player.score):
                 self.start_next_level()
