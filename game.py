@@ -33,10 +33,7 @@ class ZombieShooter(gym.Env):
 
         self.paused = False  # Game starts unpaused
 
-        self.gun_type = "shotgun"  # Start with shotgun
         self.fire_mode = "single"  # Add this to __init__
-        self.shotgun_ammo = 5  # Start with 10 shotgun shells
-        self.out_of_ammo_message_displayed = False  # Initialize in __init__()
 
         pygame.init()
         self.screen = pygame.display.set_mode((window_width, window_height))
@@ -94,6 +91,10 @@ class ZombieShooter(gym.Env):
         self.max_zombie_count = 5
         self.zombie_top_speed = 1
         self.total_frames = 0
+        self.last_bullet_frame = 0
+        self.shotgun_ammo = 5  # Start with 10 shotgun shells
+        self.out_of_ammo_message_displayed = False  # Initialize in __init__()
+        self.gun_type = "single"  # Start with shotgun
 
         self.bullets = []
         self.zombies = []
@@ -270,27 +271,45 @@ class ZombieShooter(gym.Env):
 
     def _get_obs(self):
 
-        if self.total_frames % 2 == 0:
-            # Capture the surface directly as a NumPy array
-            screen_array = pygame.surfarray.pixels3d(self.screen)
+        screen_array = pygame.surfarray.pixels3d(self.screen)
 
-            # Resize first to reduce the amount of data being processed
-            downscaled_image = cv2.resize(screen_array, (128, 128))
+        # Transpose to (height, width, channels)
+        screen_array = np.transpose(screen_array, (1, 0, 2))
 
-            # Convert to grayscale using a weighted sum of RGB channels
-            grayscale = np.dot(downscaled_image[..., :3], [0.2989, 0.5870, 0.1140])
+        # Resize to 128x128
+        downscaled_image = cv2.resize(screen_array, (128, 128), interpolation=cv2.INTER_NEAREST)
 
-            self.observation = torch.from_numpy(grayscale).float().unsqueeze(0).float()
+        # Convert to grayscale
+        grayscale = cv2.cvtColor(downscaled_image, cv2.COLOR_RGB2GRAY)
+
+        # Convert to PyTorch tensor
+        observation = torch.from_numpy(grayscale).float().unsqueeze(0)
+
+        return observation
+
+    def step(self, action, repeat=4):
+
+        total_reward = 0
         
-        self.total_frames += 1
+        for i in range(repeat):
+            reward, done, truncated = self.step_(action)
 
-        return self.observation
+            total_reward += reward
+            
+            action[4], action[5] = 0, 0
 
-    def step(self, action):
+            if done:
+                break
+        
+        return self._get_obs(), total_reward, done, truncated, self._get_info()
+
+    def step_(self, action):
             
             # Action Mapping
             # [up, down, left, right, switch gun, fire]
             # [W, S, A, D, TAB, SPACE]
+
+            self.total_frames += 1
             
             for i in action:
                 if(i != 0 and i != 1):
@@ -314,11 +333,13 @@ class ZombieShooter(gym.Env):
                 self.gun_type = "single" if self.gun_type == "shotgun" else "shotgun"
                 # print(f"Switched to {self.gun_type} mode")
         
-            if fire and len(self.bullets) < self.max_bullets:
+            if fire and (self.total_frames - self.last_bullet_frame) > 10:
                 if self.gun_type == "single":
                     self.fire_single_bullet()
                 else:
                     self.fire_shotgun_bullet()
+                
+                self.last_bullet_frame = self.total_frames
             
             # if pause and self.human:
             #     self.toggle_pause()
@@ -465,19 +486,22 @@ class ZombieShooter(gym.Env):
                 self.health_drop = None  # Remove the heart
 
             # Update the display
-            pygame.display.flip()
+            if self.human:
+                pygame.display.flip()
+            elif self.total_frames % 2 == 0:
+                pygame.display.flip()    
                             
             if self.player.health <= 0:
                 self.game_over()
 
             # Cap the frame rate
-            if self.human:
-                self.clock.tick(self.fps)
-            else:
-                self.clock.tick(1000)
-
+            # if self.human:
+            #     self.clock.tick(self.fps)
+            # else:
+            #     self.clock.tick(1000)
+            self.clock.tick(self.fps)
 
             if(self.level_goal <= self.player.score):
                 self.start_next_level()
 
-            return self._get_obs(), reward, self.done, truncated, self._get_info()
+            return reward, self.done, truncated

@@ -55,7 +55,7 @@ target_model = Actor(action_dim=env.action_space.n, hidden_dim=512).to(device)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
 
-summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}'
+summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}_ed={epsilon_decay}_dropout'
 writer = SummaryWriter(summary_writer_name)
 
 for episode in range(episodes):
@@ -64,6 +64,7 @@ for episode in range(episodes):
     episode_reward = 0
     state, info = env.reset()
     episode_steps = 0
+    step_repeat = 4
 
     episode_start_time = time.time()
 
@@ -76,7 +77,7 @@ for episode in range(episodes):
             action = model.forward(state.unsqueeze(0).to(device))[0]
             action = (action >= 0.5) # Turn probabilities into 0s and 1s
 
-        next_state, reward, done, truncated, info = env.step(action=action)
+        next_state, reward, done, truncated, info = env.step(action=action, repeat=step_repeat)
 
         memory.store_transition(state, action, reward, next_state, done)
 
@@ -85,7 +86,7 @@ for episode in range(episodes):
         
 
         episode_reward += reward
-        episode_steps += 1
+        episode_steps += step_repeat
 
         if memory.can_sample(batch_size):
             states, actions, rewards, next_states, dones = memory.sample_buffer(batch_size)

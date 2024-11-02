@@ -25,7 +25,9 @@ class Actor(nn.Module):
 
         # Fully connected layers
         x = F.relu(self.fc1(x))
+        x = F.dropout(x, 0.5)
         x = F.relu(self.fc2(x))
+        x = F.dropout(x, 0.5)
         action_probs = torch.sigmoid(self.fc3(x))  # Multi-binary action output
         return action_probs
     
