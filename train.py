@@ -6,7 +6,7 @@ from util import *
 from game import ZombieShooter
 import time
 from buffer import ReplayBuffer
-from model import Actor, soft_update
+from model import ZombieNet, soft_update
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -28,6 +28,7 @@ observation, info = env.reset()
 
 episodes = 3000
 max_episode_steps = 1200
+total_steps = 0
 step_repeat = 4
 max_episode_steps = max_episode_steps / step_repeat
 
@@ -35,10 +36,10 @@ batch_size = 64
 learning_rate = 0.0001
 epsilon = 1.0
 min_epsilon = 0.1
-epsilon_decay = 0.99
+epsilon_decay = 0.9
 gamma = 0.99
 
-hidden_layer = 256
+hidden_layer = 512
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -48,14 +49,14 @@ print(observation.shape)
 
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
-model = Actor(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
-target_model = Actor(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
+model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
+target_model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
 target_model.load_state_dict(model.state_dict())
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
 
-summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}_ed={epsilon_decay}_pa_hl={hidden_layer}'
+summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}_ed={epsilon_decay}_hl={hidden_layer}_l1_loss_bs={batch_size}'
 writer = SummaryWriter(summary_writer_name)
 
 
@@ -75,19 +76,18 @@ for episode in range(episodes):
             action = env.action_space.sample()
         else:
             # print(state)            
-            action = model.forward(state.unsqueeze(0).to(device))[0]
-            action = (action >= 0.5) # Turn probabilities into 0s and 1s
+            q_values = model.forward(state.unsqueeze(0).to(device))[0]
+            action = torch.argmax(q_values, dim=-1, keepdim=True)
 
         next_state, reward, done, truncated, info = env.step(action=action, repeat=step_repeat)
 
         memory.store_transition(state, action, reward, next_state, done)
 
-        state = next_state
-
-        
+        state = next_state        
 
         episode_reward += reward
         episode_steps += 1
+        total_steps += 1
 
         if memory.can_sample(batch_size):
             states, actions, rewards, next_states, dones = memory.sample_buffer(batch_size)
@@ -114,16 +114,19 @@ for episode in range(episodes):
             target_b = target_b.expand_as(qsa_b)
 
             # Calculate the loss
-            loss = F.mse_loss(qsa_b, target_b)
+            loss = F.smooth_l1_loss(qsa_b, target_b)
 
             # Backpropagation and optimization step
             model.zero_grad()
+
+            writer.add_scalar("Loss", loss, total_steps)
+
             loss.backward()
             optimizer.step()
         
 
-
-    soft_update(target_model, model)
+        if episode_steps % 100 == 0:
+            soft_update(target_model, model)
 
         
     

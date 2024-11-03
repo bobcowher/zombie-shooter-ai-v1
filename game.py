@@ -51,7 +51,7 @@ class ZombieShooter(gym.Env):
 
         self.announcement_font = pygame.font.SysFont(None, 100)
 
-        self.action_space = gym.spaces.MultiBinary(7)
+        self.action_space = gym.spaces.Discrete(7)
 
         self.max_bullets = 20
 
@@ -296,7 +296,8 @@ class ZombieShooter(gym.Env):
 
             total_reward += reward
             
-            action[4], action[5] = 0, 0
+            if action == 5 or action == 6:
+                action = 0 # Take no action
 
             if done:
                 break
@@ -311,20 +312,29 @@ class ZombieShooter(gym.Env):
 
             self.total_frames += 1
             
-            for i in action:
-                if(i != 0 and i != 1):
-                    raise Exception("Invalid action entered for the Zombie Shooter environment. Values must be either 0 or 1")
+            # for i in action:
+            #     if(i != 0 and i != 1):
+            #         raise Exception("Invalid action entered for the Zombie Shooter environment. Values must be either 0 or 1")
                 
-            if len(action) != self.action_space.n:
-                raise Exception("Please ensure the action matches the target action space: [6]")
+            # if len(action) != self.action_space.n:
+            #     raise Exception("Please ensure the action matches the target action space: [6]")
 
-            up = bool(action[0])
-            down = bool(action[1])
-            left = bool(action[2])
-            right = bool(action[3])
-            switch_gun = bool(action[4])
-            fire = bool(action[5])
-            pause = bool(action[6])
+            # 0 indicates no action
+            up = True if action == 1 else False
+            down = True if action == 2 else False
+            left = True if action == 3 else False
+            right = True if action == 4 else False
+            switch_gun = True if action == 5 else False
+            fire = True if action == 6 else False
+            pause = False
+
+            # up = bool(action[0])
+            # down = bool(action[1])
+            # left = bool(action[2])
+            # right = bool(action[3])
+            # switch_gun = bool(action[4])
+            # fire = bool(action[5])
+            # pause = bool(action[6])
             
             # Setting up the initial obs variables
             reward, truncated = 0, False 

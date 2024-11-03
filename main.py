@@ -26,7 +26,8 @@ while True:
     # Action Mapping
     # [up, down, left, right, switch gun, fire]
     # [W, S, A, D, TAB, SPACE]
-    action = [0,0,0,0,0,0,0]
+    # action = [0,0,0,0,0,0,0]
+    action = 0
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -34,22 +35,23 @@ while True:
             sys.exit()
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_TAB:
-                action[4] = 1
+                action = 5
             elif event.key == pygame.K_SPACE:
-                action[5] = 1
+                action = 6
             elif event.key == pygame.K_ESCAPE:
-                action[6] = 1
+                action = 7
 
     keys = pygame.key.get_pressed()
 
-    if keys[pygame.K_w]:
-        action[0] = 1
-    if keys[pygame.K_s]:
-        action[1] = 1
-    if keys[pygame.K_a]:  # Left
-        action[2] = 1
-    if keys[pygame.K_d]:  # Right
-        action[3] = 1
+    if action == 0:
+        if keys[pygame.K_w]:
+            action = 1
+        if keys[pygame.K_s]:
+            action = 2
+        if keys[pygame.K_a]:  # Left
+            action = 3
+        if keys[pygame.K_d]:  # Right
+            action = 4
 
 
 
