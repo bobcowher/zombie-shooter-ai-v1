@@ -1,22 +1,16 @@
 import datetime
-import pygame
-import sys
-import math
 from assets import Zombie, Player
 from bullet import SingleBullet
 import random
 from util import *
 from game import ZombieShooter
-import cv2
-import os
 import time
 from buffer import ReplayBuffer
-from model import Actor, Critic
+from model import Actor, soft_update
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
-import objgraph
 from pympler import asizeof
 
 
@@ -34,12 +28,17 @@ observation, info = env.reset()
 
 episodes = 3000
 max_episode_steps = 1200
+step_repeat = 4
+max_episode_steps = max_episode_steps / step_repeat
+
 batch_size = 64
 learning_rate = 0.0001
 epsilon = 1.0
 min_epsilon = 0.1
 epsilon_decay = 0.99
 gamma = 0.99
+
+hidden_layer = 256
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -49,14 +48,17 @@ print(observation.shape)
 
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
-model = Actor(action_dim=env.action_space.n, hidden_dim=512).to(device)
-target_model = Actor(action_dim=env.action_space.n, hidden_dim=512).to(device)
+model = Actor(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
+target_model = Actor(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
+target_model.load_state_dict(model.state_dict())
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
 
-summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}_ed={epsilon_decay}_dropout'
+summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}_ed={epsilon_decay}_pa_hl={hidden_layer}'
 writer = SummaryWriter(summary_writer_name)
+
+
 
 for episode in range(episodes):
 
@@ -64,7 +66,6 @@ for episode in range(episodes):
     episode_reward = 0
     state, info = env.reset()
     episode_steps = 0
-    step_repeat = 4
 
     episode_start_time = time.time()
 
@@ -86,7 +87,7 @@ for episode in range(episodes):
         
 
         episode_reward += reward
-        episode_steps += step_repeat
+        episode_steps += 1
 
         if memory.can_sample(batch_size):
             states, actions, rewards, next_states, dones = memory.sample_buffer(batch_size)
@@ -120,6 +121,11 @@ for episode in range(episodes):
             loss.backward()
             optimizer.step()
         
+
+
+    soft_update(target_model, model)
+
+        
     
     writer.add_scalar('Score', episode_reward, episode)
     writer.add_scalar('Epsilon', epsilon, episode)
@@ -127,9 +133,7 @@ for episode in range(episodes):
 
     if epsilon > min_epsilon:
         epsilon *= epsilon_decay
-    
-    if episode % 10 == 0:
-        target_model.load_state_dict(model.state_dict())
+            
 
 
     

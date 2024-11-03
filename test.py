@@ -46,10 +46,14 @@ model = Actor(action_dim=env.action_space.n, hidden_dim=256).to(device)
 
 model.load_the_model()
 
+model.eval()
+
 target_model = Actor(action_dim=env.action_space.n, hidden_dim=256).to(device)
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
+
+step_repeat = 4
 
 for episode in range(episodes):
 
@@ -69,7 +73,7 @@ for episode in range(episodes):
             action = model.forward(state.unsqueeze(0).to(device))[0]
             action = (action >= 0.5) # Turn probabilities into 0s and 1s
 
-        next_state, reward, done, truncated, info = env.step(action=action)
+        next_state, reward, done, truncated, info = env.step(action=action, repeat=step_repeat)
 
         state = next_state
 
