@@ -11,7 +11,7 @@ import cv2
 import os
 import time
 from buffer import ReplayBuffer
-from model import Actor, Critic
+from model import ZombieNet
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -42,13 +42,11 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
-model = Actor(action_dim=env.action_space.n, hidden_dim=256).to(device)
+model = ZombieNet(action_dim=env.action_space.n, hidden_dim=512).to(device)
 
 model.load_the_model()
 
 model.eval()
-
-target_model = Actor(action_dim=env.action_space.n, hidden_dim=256).to(device)
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
@@ -70,8 +68,8 @@ for episode in range(episodes):
             action = env.action_space.sample()
         else:
             # print(state)            
-            action = model.forward(state.unsqueeze(0).to(device))[0]
-            action = (action >= 0.5) # Turn probabilities into 0s and 1s
+            q_values = model.forward(state.unsqueeze(0).to(device))[0]
+            action = torch.argmax(q_values, dim=-1, keepdim=True)
 
         next_state, reward, done, truncated, info = env.step(action=action, repeat=step_repeat)
 

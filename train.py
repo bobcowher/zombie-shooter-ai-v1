@@ -6,7 +6,7 @@ from util import *
 from game import ZombieShooter
 import time
 from buffer import ReplayBuffer
-from model import ZombieNet, soft_update
+from model import ZombieNet, soft_update, hard_update
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -36,7 +36,7 @@ batch_size = 64
 learning_rate = 0.0001
 epsilon = 1.0
 min_epsilon = 0.1
-epsilon_decay = 0.9
+epsilon_decay = 0.95
 gamma = 0.99
 
 hidden_layer = 512
@@ -116,11 +116,10 @@ for episode in range(episodes):
             # Calculate the loss
             loss = F.smooth_l1_loss(qsa_b, target_b)
 
+            writer.add_scalar("Loss", loss, total_steps)
+            
             # Backpropagation and optimization step
             model.zero_grad()
-
-            writer.add_scalar("Loss", loss, total_steps)
-
             loss.backward()
             optimizer.step()
         
@@ -128,7 +127,8 @@ for episode in range(episodes):
         if episode_steps % 100 == 0:
             soft_update(target_model, model)
 
-        
+
+    model.save_the_model()
     
     writer.add_scalar('Score', episode_reward, episode)
     writer.add_scalar('Epsilon', epsilon, episode)

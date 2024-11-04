@@ -7,12 +7,12 @@ class ZombieNet(nn.Module):
     def __init__(self, action_dim, hidden_dim=256):
         super(ZombieNet, self).__init__()
         # CNN layers
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=8, stride=4, padding=0)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=0)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=0)
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=8, stride=4, padding=0)
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2, padding=0)
+        self.conv3 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, stride=1, padding=0)
         
         # Fully connected layers
-        self.fc1 = nn.Linear(9216, hidden_dim)  # Adjust based on input size
+        self.fc1 = nn.Linear(2304, hidden_dim)  # Adjust based on input size
         self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.output = nn.Linear(hidden_dim, action_dim)
 
@@ -25,9 +25,7 @@ class ZombieNet(nn.Module):
 
         # Fully connected layers
         x = F.relu(self.fc1(x))
-        x = F.dropout(x, 0.5)
         x = F.relu(self.fc2(x))
-        x = F.dropout(x, 0.5)
         q_values = self.output(x)
         return q_values
     
@@ -48,3 +46,7 @@ class ZombieNet(nn.Module):
 def soft_update(target, source, tau=0.005):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(target_param.data * (1.0 - tau) + param.data * tau)
+
+def hard_update(target, source):
+    for target_param, param in zip(target.parameters(), source.parameters()):
+        target_param.data.copy_(param.data)
