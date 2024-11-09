@@ -42,7 +42,7 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
-model = ZombieNet(action_dim=env.action_space.n, hidden_dim=512).to(device)
+model = ZombieNet(action_dim=env.action_space.n, hidden_dim=512, observation_shape=observation.shape).to(device)
 
 model.load_the_model()
 

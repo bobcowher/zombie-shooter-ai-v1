@@ -27,19 +27,21 @@ observation, info = env.reset()
 # Game loop
 
 episodes = 3000
-max_episode_steps = 1200
+max_episode_steps = 2400
 total_steps = 0
 step_repeat = 4
 max_episode_steps = max_episode_steps / step_repeat
 
-batch_size = 64
+batch_size = 32
 learning_rate = 0.0001
-epsilon = 1.0
+epsilon = 0.4
 min_epsilon = 0.1
-epsilon_decay = 0.95
+epsilon_decay = 0.99
 gamma = 0.99
 
 hidden_layer = 512
+
+dropout = 0
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -49,14 +51,17 @@ print(observation.shape)
 
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
-model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
-target_model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer).to(device)
+model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(device)
+
+# model.load_the_model()
+
+target_model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(device)
 target_model.load_state_dict(model.state_dict())
 
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
 
-summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}_ed={epsilon_decay}_hl={hidden_layer}_l1_loss_bs={batch_size}'
+summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_dqn_lr={learning_rate}_ed={epsilon_decay}_hl={hidden_layer}_l1_loss_bs={batch_size}_dropout={dropout}'
 writer = SummaryWriter(summary_writer_name)
 
 

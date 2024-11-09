@@ -17,7 +17,7 @@ WINDOW_WIDTH, WINDOW_HEIGHT = 1200, 800  # Visible game window size
 WORLD_WIDTH, WORLD_HEIGHT = 1800, 1200  # The size of the larger game world
 FPS = 60
 
-game = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=False, render_mode="human")
+game = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=True, render_mode="human")
 
 # Game loop
 while True:
