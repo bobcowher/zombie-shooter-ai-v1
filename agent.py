@@ -112,8 +112,8 @@ class Agent():
                     self.optimizer.step()
                 
 
-                if total_steps % 100 == 0:
-                    soft_update(self.target_model, self.model)
+            if episode % 4 == 0:
+                self.target_model.load_state_dict(self.model.state_dict())
 
 
             self.model.save_the_model()

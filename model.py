@@ -7,20 +7,23 @@ class ZombieNet(nn.Module):
     def __init__(self, action_dim, hidden_dim=256, dropout=0, observation_shape=None):
         super(ZombieNet, self).__init__()
         # CNN layers
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4, stride=2, padding=0)
-        self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2, padding=0)
-        self.conv3 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=4, stride=2, padding=0)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=(8, 8), stride=(4, 4))
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=(4, 4), stride=(2, 2))
+        self.conv3 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1))
         
         conv_output_size = self.calculate_conv_output(observation_shape)
 
         print("conv_output_size: ", conv_output_size)
 
         # Fully connected layers
-        self.fc1 = nn.Linear(conv_output_size, hidden_dim)  # Adjust based on input size
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc1 = nn.Linear(conv_output_size, hidden_dim * 2)  # Adjust based on input size
+        self.fc2 = nn.Linear(hidden_dim * 2, hidden_dim)
         self.output = nn.Linear(hidden_dim, action_dim)
 
         self.dropout = dropout
+
+        # Initialize weights
+        self.apply(self.weights_init)
     
     def calculate_conv_output(self, observation_shape):
 
@@ -68,6 +71,18 @@ class ZombieNet(nn.Module):
             print(f"Successfully loaded weights file {weights_filename}")
         except:
             print(f"No weights file available at {weights_filename}")
+
+    def weights_init(self, m):
+        if isinstance(m, nn.Conv2d):
+            # Initialize Conv2d layers with Kaiming (He) initialization
+            nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.Linear):
+            # Initialize Linear layers with Xavier (Glorot) initialization
+            nn.init.xavier_normal_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
 
 
 # Helper Function
