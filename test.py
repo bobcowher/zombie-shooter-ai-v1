@@ -1,21 +1,6 @@
-import datetime
-import pygame
-import sys
-import math
-from assets import Zombie, Player
-from bullet import SingleBullet
-import random
 from util import *
 from game import ZombieShooter
-import cv2
-import os
-import time
-from buffer import ReplayBuffer
-from model import ZombieNet
-import torch
-import torch.optim as optim
-import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
+from agent_sac import Agent
 
 # Constants
 WINDOW_WIDTH, WINDOW_HEIGHT = 1200, 800  # Visible game window size
@@ -38,55 +23,10 @@ min_epsilon = 0.1
 epsilon_decay = 0.99
 gamma = 0.99
 
-device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
+agent = Agent(env=env)
 
-model = ZombieNet(action_dim=env.action_space.n, hidden_dim=512, observation_shape=observation.shape).to(device)
-
-model.load_the_model()
-
-model.eval()
-
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-# critic_1 = Critic()
-
-step_repeat = 4
-
-for episode in range(episodes):
-
-    done = False
-    episode_reward = 0
-    state, info = env.reset()
-    episode_steps = 0
-
-    episode_start_time = time.time()
-
-    while not done and episode_steps < max_episode_steps:
-
-        if random.random() < epsilon:
-            action = env.action_space.sample()
-        else:
-            # print(state)            
-            q_values = model.forward(state.unsqueeze(0).to(device))[0]
-            action = torch.argmax(q_values, dim=-1, keepdim=True)
-
-        next_state, reward, done, truncated, info = env.step(action=action, repeat=step_repeat)
-
-        state = next_state
-
-        episode_reward += reward
-        episode_steps += 1
-
-
-
-    
-    episode_time = time.time() - episode_start_time
-    
-    print(f"Completed episode {episode} with score {episode_reward}")
-    print(f"Episode Time: {episode_time:1f} seconds")
-    print(f"Episode Steps: {episode_steps}")
-    
+agent.test(max_episode_steps=1200)
 
     
     
