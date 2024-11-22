@@ -285,6 +285,8 @@ class ZombieShooter(gym.Env):
         # Convert to PyTorch tensor
         observation = torch.from_numpy(grayscale).float().unsqueeze(0)
 
+        observation = observation / 255
+
         return observation
 
     def step(self, action, repeat=4):
