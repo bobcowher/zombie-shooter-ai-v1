@@ -8,10 +8,15 @@ class Critic(nn.Module):
     def __init__(self, action_dim, hidden_size=256, dropout=0, observation_shape=None):
         super(Critic, self).__init__()
         # CNN layers
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(8, 8), stride=(4, 4))
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=(4, 4), stride=(2, 2))
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=(3, 3))
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4, stride=2)
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2)  # Third convolutional layer
+        self.conv4 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)
         
+        # Pooling layer for additional downsampling
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+
         conv_output_size = self.calculate_conv_output(observation_shape)
 
         # Fully connected layers
@@ -25,32 +30,29 @@ class Critic(nn.Module):
         self.apply(weights_init)
 
     def calculate_conv_output(self, observation_shape):
-        x = np.zeros(observation_shape, dtype=np.float32)
-        x = torch.tensor(x).unsqueeze(0)
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = x.view(x.size(0), -1)
-        return x.shape[1]
+        x = torch.zeros(1, *observation_shape)
+        x = self.pool(F.relu(self.conv1(x)))  # Pooling after first conv layer
+        x = F.relu(self.conv2(x))             # No pooling after second to control size
+        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x))             # No pooling after second to control size
+
+        return x.view(-1).shape[0]
     
 
     def forward(self, x):
         # CNN forward pass
-        x = F.relu(self.conv1(x))
+        x = self.pool(F.relu(self.conv1(x)))
         x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = x.view(x.size(0), -1)  # Flatten the feature map
+        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x)) 
+        x = x.view(x.size(0), -1) 
 
         # Fully connected layers
         x = F.relu(self.fc1(x))
-        if self.dropout > 0:
-            x = F.dropout(x, self.dropout)
         x = F.relu(self.fc2(x))
-        if self.dropout > 0:
-            x = F.dropout(x, self.dropout)
+        x = F.tanh(self.output(x / 1000))
 
-        q_values = self.output(x)  # Output Q-values for each action
-        return q_values
+        return x
     
     
     def save_the_model(self, weights_filename='models/latest.pt'):
@@ -70,10 +72,13 @@ class Actor(nn.Module):
     def __init__(self, action_dim, hidden_size=256, dropout=0, observation_shape=None):
         super(Actor, self).__init__()
         # CNN layers
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=(8, 8), stride=(4, 4))
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=(4, 4), stride=(2, 2))
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1))
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4, stride=2)
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2)
+        self.conv3 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2)  # Third convolutional layer
+        self.conv4 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)
         
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
         conv_output_size = self.calculate_conv_output(observation_shape)
 
         # Fully connected layers
@@ -83,35 +88,35 @@ class Actor(nn.Module):
 
         self.dropout = dropout
 
+
+
         # Initialize weights
         self.apply(weights_init)
 
     def calculate_conv_output(self, observation_shape):
-        x = np.zeros(observation_shape, dtype=np.float32)
-        x = torch.tensor(x).unsqueeze(0)
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = x.view(x.size(0), -1)
-        return x.shape[1]
+        x = torch.zeros(1, *observation_shape)
+        x = self.pool(F.relu(self.conv1(x)))  # Pooling after first conv layer
+        x = F.relu(self.conv2(x))             # No pooling after second to control size
+        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x))             # No pooling after second to control size
+
+        return x.view(-1).shape[0]
 
     def forward(self, x):
         # CNN forward pass
-        x = F.relu(self.conv1(x))
+        x = self.pool(F.relu(self.conv1(x)))
         x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = x.view(x.size(0), -1)  # Flatten the feature map
+        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x)) 
+        x = x.view(x.size(0), -1) 
 
         # Fully connected layers
         x = F.relu(self.fc1(x))
-        if self.dropout > 0:
-            x = F.dropout(x, self.dropout)
         x = F.relu(self.fc2(x))
-        if self.dropout > 0:
-            x = F.dropout(x, self.dropout)
-
-        logits = self.output(x)  # Output logits for the action distribution
-        return logits
+        x = F.tanh(self.output(x / 1000))  # Output logits for the action distribution
+        # print(f"Raw Output: {x}")
+        action_probs = F.softmax(x, dim=-1)
+        return action_probs
 
     def save_the_model(self, weights_filename='models/latest.pt'):
         # Take the default weights filename(latest.pt) and save it
