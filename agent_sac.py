@@ -14,7 +14,7 @@ from torch.utils.tensorboard import SummaryWriter
 class Agent(object):
     def __init__(self, env, hidden_size=512, gamma=0.99, 
                  tau=0.005, alpha=0.1, target_update_interval=1, 
-                 learning_rate=0.0003, step_repeat=4):
+                 learning_rate=0.0001, step_repeat=4):
 
         self.gamma = gamma
         self.tau = tau
@@ -53,14 +53,17 @@ class Agent(object):
 
 
     def select_action(self, state, evaluate=False):
-        state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
         logits = self.policy(state)
         probs = F.softmax(logits, dim=-1)
+        print(probs)
         if evaluate:
             action = torch.argmax(probs, dim=-1)
         else:
             dist = torch.distributions.Categorical(probs)
             action = dist.sample()
+
+        print(action)
+
         return action.item()
 
     def test(self, max_episode_steps):
@@ -77,9 +80,8 @@ class Agent(object):
         episode_start_time = time.time()
 
         while not done and episode_steps < max_episode_steps:
-            # Epsilon-greedy action selection
-            logits = self.policy(state)
-            action = torch.argmax(logits, dim=-1, keepdim=True)
+
+            action = self.select_action(state, evaluate=True)
 
             # Environment step
             next_state, reward, done, truncated, info = self.env.step(action=action, repeat=self.step_repeat)
@@ -101,7 +103,7 @@ class Agent(object):
         print(f"Episode Steps: {episode_steps}")
 
 
-    def train(self, episodes, max_episode_steps, summary_writer_suffix, batch_size, epsilon, epsilon_decay, min_epsilon):
+    def train(self, episodes, max_episode_steps, summary_writer_suffix, batch_size, warmup=10):
         summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{summary_writer_suffix}'
         writer = SummaryWriter(summary_writer_name)
 
@@ -116,19 +118,18 @@ class Agent(object):
             episode_start_time = time.time()
 
             while not done and episode_steps < max_episode_steps:
-                # Epsilon-greedy action selection
-                if random.random() < epsilon:
+
+                if episode < warmup:
                     action = self.env.action_space.sample()
                 else:
-                    logits = self.policy(state)
-                    action = torch.argmax(logits, dim=-1, keepdim=True)
+                    action = self.select_action(state=state)
 
                 # Environment step
                 next_state, reward, done, truncated, info = self.env.step(action=action, repeat=self.step_repeat)
                 next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
 
                 # Store the transition in memory
-                self.memory.store_transition(state, action.item(), reward, next_state, done)
+                self.memory.store_transition(state, action, reward, next_state, done)
                 state = next_state  # Update current state
 
                 # Accumulate episode reward and steps
@@ -151,11 +152,6 @@ class Agent(object):
             
             # Log episode results to TensorBoard
             writer.add_scalar('Score', episode_reward, episode)
-            writer.add_scalar('Epsilon', epsilon, episode)
-            
-            # Update epsilon (exploration decay)
-            if epsilon > min_epsilon:
-                epsilon *= epsilon_decay
             
             # Print episode summary
             episode_time = time.time() - episode_start_time
