@@ -48,6 +48,8 @@ class Agent(object):
         self.policy = Actor(observation_shape=observation.shape, 
                             action_dim=env.action_space.n, 
                             hidden_size=hidden_size).to(self.device)
+
+        # self.policy.load_the_model()
         
         self.policy_optim = Adam(self.policy.parameters(), lr=learning_rate)
 
@@ -55,15 +57,13 @@ class Agent(object):
     def select_action(self, state, evaluate=False):
         logits = self.policy(state)
         probs = F.softmax(logits, dim=-1)
-        print(probs)
         if evaluate:
             action = torch.argmax(probs, dim=-1)
         else:
             dist = torch.distributions.Categorical(probs)
             action = dist.sample()
 
-        print(action)
-
+        # print("Actions selected: ", action)
         return action.item()
 
     def test(self, max_episode_steps):
@@ -162,6 +162,8 @@ class Agent(object):
 
 
     def update_parameters(self, batch_size, updates):
+
+        debug_size = 10
         # Sample a batch from memory
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.memory.sample_buffer(batch_size=batch_size)
 
@@ -169,20 +171,33 @@ class Agent(object):
         # next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
         action_batch = action_batch.unsqueeze(1)
         reward_batch = reward_batch.unsqueeze(1)
-        done_batch = done_batch.unsqueeze(1)
+        done_batch = done_batch.unsqueeze(1).float()
 
 
         with torch.no_grad():
+            # print("State Batch: ", state_batch.sum())
+            # print("Next State Batch: ", next_state_batch.sum())
             next_q_values = self.critic_target(next_state_batch)
+            # print("Next Q Values: ", next_q_values)
             next_q_value = torch.max(next_q_values, dim=1, keepdim=True)[0]  # Shape: [batch_size, 1]
-            q_target = reward_batch + ~done_batch * self.gamma * next_q_value  # Shape: [batch_size, 1]
+            
+            q_target = reward_batch + (1 - done_batch) * self.gamma * next_q_value  # Shape: [batch_size, 1]
+
+            # print("Reward batch: ", reward_batch[:debug_size])
+            # print("Done batch: ", done_batch[:debug_size])
+            # print("Gamma: ", self.gamma)
+            # print("Next Q Value: ", next_q_value[:debug_size])
+            # print("Q Target: ", q_target[:debug_size])
+
 
         # Q-values for current state-action pairs
-        # print(action_batch)
+
         q_values = self.critic(state_batch).gather(1, action_batch)
-        # print("Q_Values: ", q_values)
-        # print("Q_Target", q_target)
+        # print("Q_Values: ", q_values[:debug_size])
+
         qf_loss = F.mse_loss(q_values, q_target)
+        # print("QF Loss", qf_loss)
+        # time.sleep(5)
 
         self.critic_optim.zero_grad()
         qf_loss.backward()
@@ -202,7 +217,7 @@ class Agent(object):
         self.policy_optim.step()
 
         # Soft update target network
-        if updates % self.target_update_interval == 0:
-            soft_update(self.critic_target, self.critic, self.tau)
+        # if updates % self.target_update_interval == 0:
+        soft_update(self.critic_target, self.critic, self.tau)
 
         return qf_loss.item(), policy_loss.item()

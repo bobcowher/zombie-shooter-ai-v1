@@ -17,6 +17,7 @@ epsilon = 1
 min_epsilon = 0.1
 epsilon_decay = 0.99
 gamma = 0.99
+alpha = 0.1
 
 hidden_size = 256
 
@@ -32,9 +33,9 @@ FPS = 60
 env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=False, render_mode="rgb")
 
 
-summary_writer_suffix = f'sac'
+summary_writer_suffix = f'sac_a={alpha}'
 
-agent = Agent(env=env)
+agent = Agent(env=env, alpha=alpha)
 
     # def __init__(self, num_inputs, num_actions, gamma, tau, alpha, target_update_interval,
     #              automatic_entropy_tuning, hidden_size, learning_rate):
@@ -42,8 +43,9 @@ agent = Agent(env=env)
 # Training Phase 1
 
 agent.train(2000, max_episode_steps=max_episode_steps, summary_writer_suffix=summary_writer_suffix + "-phase-1",
-            batch_size=batch_size, warmup=0)
+            batch_size=batch_size, warmup=50)
     
 
-agent.train(2000, max_episode_steps=max_episode_steps * 2, summary_writer_suffix=summary_writer_suffix + "-phase-2",
-            batch_size=batch_size, warmup=0)
+# agent.train(2000, max_episode_steps=max_episode_steps * 2, summary_writer_suffix=summary_writer_suffix + "-phase-2",
+            # batch_size=batch_size, warmup=0)
+    

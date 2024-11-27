@@ -70,10 +70,14 @@ class Critic(ActorCriticBase):
         x = x.view(x.size(0), -1) 
 
         # Fully connected layers
+        # print("Conv Output: ", x)
         x = F.relu(self.layer_norm1(self.fc1(x)))
+        # print("X after layer norm: ", x)
         x = F.relu(self.fc2(x))
-        x = F.tanh(self.output(x))
-
+        # print("X after layer 2: ", x)
+        # x = F.tanh(self.output(x) / (x.abs().max() + 1e-6))
+        x = self.output(x)
+        # print("X after tanh and output: ", x)
         return x
     
 
@@ -91,9 +95,14 @@ class Actor(ActorCriticBase):
         x = x.view(x.size(0), -1) 
 
         # Fully connected layers
+        # print("Conv Output: ", x)
         x = F.relu(self.layer_norm1(self.fc1(x)))
+        # print("X after layer norm: ", x)
         x = F.relu(self.fc2(x))
-        x = F.tanh(self.output(x))  # Output logits for the action distribution
-        # print(f"Raw Output: {x}")
+        # print("X after layer 2: ", x)
+        x = self.output(x)
+        # x = F.tanh(self.output(x) / (x.abs().max() + 1e-6))  # Output logits for the action distribution
+        # print("X after output: ", x)
         action_probs = F.softmax(x, dim=-1)
+        # print("Action Probs: ", action_probs)
         return action_probs
