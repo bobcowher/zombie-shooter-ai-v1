@@ -6,7 +6,7 @@ from agent_sac import Agent
 
 
 episodes = 3000
-max_episode_steps = 1200
+max_episode_steps = 2400
 total_steps = 0
 step_repeat = 4
 max_episode_steps = max_episode_steps / step_repeat
@@ -18,9 +18,9 @@ min_epsilon = 0.1
 epsilon_decay = 0.99
 gamma = 0.99
 
-hidden_size = 1024
+hidden_size = 256
 
-dropout = 0.2
+dropout = 0
 
 # print(observation.shape)
 
@@ -42,10 +42,8 @@ agent = Agent(env=env)
 # Training Phase 1
 
 agent.train(2000, max_episode_steps=max_episode_steps, summary_writer_suffix=summary_writer_suffix + "-phase-1",
-            batch_size=batch_size, epsilon=epsilon, epsilon_decay=epsilon_decay,
-            min_epsilon=min_epsilon)
+            batch_size=batch_size, warmup=0)
     
 
 agent.train(2000, max_episode_steps=max_episode_steps * 2, summary_writer_suffix=summary_writer_suffix + "-phase-2",
-            batch_size=batch_size, epsilon=0.1, epsilon_decay=epsilon_decay,
-            min_epsilon=min_epsilon)
+            batch_size=batch_size, warmup=0)
