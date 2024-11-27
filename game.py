@@ -285,6 +285,9 @@ class ZombieShooter(gym.Env):
         # Convert to PyTorch tensor
         observation = torch.from_numpy(grayscale).float().unsqueeze(0)
 
+        observation = observation / 255
+        # print("Max value in observation: ", torch.max(observation))
+
         return observation
 
     def step(self, action, repeat=4):
@@ -509,7 +512,10 @@ class ZombieShooter(gym.Env):
             #     self.clock.tick(self.fps)
             # else:
             #     self.clock.tick(1000)
-            self.clock.tick(self.fps)
+            if self.human:
+                self.clock.tick(self.fps)
+            else:
+                self.clock.tick()
 
             if(self.level_goal <= self.player.score):
                 self.start_next_level()
