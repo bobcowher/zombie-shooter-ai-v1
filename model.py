@@ -63,6 +63,9 @@ class Critic(ActorCriticBase):
 
     def forward(self, x):
         # CNN forward pass
+
+        x = x / 255 # Normalize values. 
+
         x = self.pool(F.relu(self.conv1(x)))
         x = F.relu(self.conv2(x))
         x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
