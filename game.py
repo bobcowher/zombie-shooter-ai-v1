@@ -285,7 +285,7 @@ class ZombieShooter(gym.Env):
         # Convert to PyTorch tensor
         observation = torch.from_numpy(grayscale).float().unsqueeze(0)
 
-        observation = observation / 255
+        # observation = observation / 255 # Changing this here causes issues with buffer size. 
         # print("Max value in observation: ", torch.max(observation))
 
         return observation
