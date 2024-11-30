@@ -9,7 +9,7 @@ import datetime
 import random
 from buffer import ReplayBuffer
 from torch.utils.tensorboard import SummaryWriter
-
+from pympler import asizeof
 
 class Agent(object):
     def __init__(self, env, hidden_size=512, gamma=0.99, 
@@ -30,26 +30,41 @@ class Agent(object):
 
         self.memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=self.device)
 
+        print(f"Initialized agents on device: {self.device}")
+        print(f"Memory Size: {asizeof.asizeof(self.memory) / (1024 * 1024 * 1024):2f} Gb")
+
 
         # Q-network now outputs values for each discrete action
-        self.critic = Critic(observation_shape=observation.shape, 
+        self.critic1 = Critic(observation_shape=observation.shape, 
                              action_dim=env.action_space.n, 
                              hidden_size=hidden_size).to(device=self.device)
         
-        self.critic_optim = AdamW(self.critic.parameters(), lr=learning_rate)
+        self.critic1_optim = AdamW(self.critic1.parameters(), lr=learning_rate)
 
-        self.critic_target = Critic(observation_shape=observation.shape, 
+        self.critic1_target = Critic(observation_shape=observation.shape, 
                                     action_dim=env.action_space.n, 
                                     hidden_size=hidden_size).to(device=self.device)
 
-        hard_update(self.critic_target, self.critic)
+        hard_update(self.critic1_target, self.critic1)
+
+        self.critic2 = Critic(observation_shape=observation.shape, 
+                             action_dim=env.action_space.n, 
+                             hidden_size=hidden_size).to(device=self.device)
+        
+        self.critic2_optim = AdamW(self.critic2.parameters(), lr=learning_rate)
+
+        self.critic2_target = Critic(observation_shape=observation.shape, 
+                                    action_dim=env.action_space.n, 
+                                    hidden_size=hidden_size).to(device=self.device)
+
+        hard_update(self.critic2_target, self.critic2)
 
         # Policy network for discrete actions: outputs logits for each action
         self.policy = Actor(observation_shape=observation.shape, 
                             action_dim=env.action_space.n, 
                             hidden_size=hidden_size).to(self.device)
 
-        # self.policy.load_the_model()
+        self.policy.load_the_model()
         
         self.policy_optim = Adam(self.policy.parameters(), lr=learning_rate)
 
@@ -57,6 +72,9 @@ class Agent(object):
     def select_action(self, state, evaluate=False):
         logits = self.policy(state)
         probs = F.softmax(logits, dim=-1)
+        # print("Logits: ", logits)
+        # print("Probs: ", probs)
+
         if evaluate:
             action = torch.argmax(probs, dim=-1)
         else:
@@ -64,6 +82,7 @@ class Agent(object):
             action = dist.sample()
 
         # print("Actions selected: ", action)
+        # time.sleep(1)
         return action.item()
 
     def test(self, max_episode_steps):
@@ -81,11 +100,13 @@ class Agent(object):
 
         while not done and episode_steps < max_episode_steps:
 
-            action = self.select_action(state, evaluate=True)
+            action = self.select_action(state, evaluate=False)
 
             # Environment step
             next_state, reward, done, truncated, info = self.env.step(action=action, repeat=self.step_repeat)
             next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
+
+            print("Reward: ", reward)
 
             # Store the transition in memory
             state = next_state  # Update current state
@@ -126,7 +147,9 @@ class Agent(object):
 
                 # Environment step
                 next_state, reward, done, truncated, info = self.env.step(action=action, repeat=self.step_repeat)
+                # print("Next State: ", next_state)
                 next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
+                # print("Next State - FloatTensor Unsqueezed: ", next_state)
 
                 # Store the transition in memory
                 self.memory.store_transition(state, action, reward, next_state, done)
@@ -143,9 +166,6 @@ class Agent(object):
                     writer.add_scalar('Critic Loss', qf1_loss, total_steps)
                     writer.add_scalar('Actor Loss', policy_loss, total_steps)
 
-                # Update target networks at intervals
-                if total_steps % self.target_update_interval == 0:
-                    soft_update(self.critic_target, self.critic, self.tau)
 
             # Save model after each episode
             self.policy.save_the_model()
@@ -162,62 +182,57 @@ class Agent(object):
 
 
     def update_parameters(self, batch_size, updates):
-
-        debug_size = 10
         # Sample a batch from memory
         state_batch, action_batch, reward_batch, next_state_batch, done_batch = self.memory.sample_buffer(batch_size=batch_size)
 
-        # state_batch = torch.FloatTensor(state_batch).to(self.device)
-        # next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
         action_batch = action_batch.unsqueeze(1)
         reward_batch = reward_batch.unsqueeze(1)
         done_batch = done_batch.unsqueeze(1).float()
 
-
+        # Compute target Q-values using double Q-network
         with torch.no_grad():
-            # print("State Batch: ", state_batch.sum())
-            # print("Next State Batch: ", next_state_batch.sum())
-            next_q_values = self.critic_target(next_state_batch)
-            # print("Next Q Values: ", next_q_values)
-            next_q_value = torch.max(next_q_values, dim=1, keepdim=True)[0]  # Shape: [batch_size, 1]
-            
-            q_target = reward_batch + (1 - done_batch) * self.gamma * next_q_value  # Shape: [batch_size, 1]
+            next_q1_values = self.critic1_target(next_state_batch)
+            next_q2_values = self.critic2_target(next_state_batch)
+            next_q_value = torch.min(next_q1_values, next_q2_values)  # Take the minimum Q-value
 
-            # print("Reward batch: ", reward_batch[:debug_size])
-            # print("Done batch: ", done_batch[:debug_size])
-            # print("Gamma: ", self.gamma)
-            # print("Next Q Value: ", next_q_value[:debug_size])
-            # print("Q Target: ", q_target[:debug_size])
+            q_target = reward_batch + (1 - done_batch) * self.gamma * next_q_value
 
+        # Compute Q-value predictions for both critics
+        q1_values = self.critic1(state_batch).gather(1, action_batch)
+        q2_values = self.critic2(state_batch).gather(1, action_batch)
 
-        # Q-values for current state-action pairs
+        # Compute losses for both critics
+        qf1_loss = F.mse_loss(q1_values, q_target)
+        qf2_loss = F.mse_loss(q2_values, q_target)
 
-        q_values = self.critic(state_batch).gather(1, action_batch)
-        # print("Q_Values: ", q_values[:debug_size])
+        # Optimize both critics
+        self.critic1_optim.zero_grad()
+        qf1_loss.backward()
+        self.critic1_optim.step()
 
-        qf_loss = F.mse_loss(q_values, q_target)
-        # print("QF Loss", qf_loss)
-        # time.sleep(5)
+        self.critic2_optim.zero_grad()
+        qf2_loss.backward()
+        self.critic2_optim.step()
 
-        self.critic_optim.zero_grad()
-        qf_loss.backward()
-        self.critic_optim.step()
+        # Update target networks
+        soft_update(self.critic1_target, self.critic1, self.tau)
+        soft_update(self.critic2_target, self.critic2, self.tau)
 
-        # Update policy using categorical cross-entropy loss
         logits = self.policy(state_batch)
         probs = F.softmax(logits, dim=-1)
         dist = torch.distributions.Categorical(probs)
         actions = dist.sample()
         log_probs = dist.log_prob(actions)
-        qf_pi = self.critic(state_batch).gather(1, actions.unsqueeze(-1)).squeeze(-1)
-        policy_loss = (self.alpha * log_probs - qf_pi).mean()
 
+        # Use minimum Q-value for policy gradient
+        qf_pi = torch.min(
+            self.critic1(state_batch).gather(1, actions.unsqueeze(-1)).squeeze(-1),
+            self.critic2(state_batch).gather(1, actions.unsqueeze(-1)).squeeze(-1),
+        )
+
+        policy_loss = (self.alpha * log_probs - qf_pi).mean()
         self.policy_optim.zero_grad()
         policy_loss.backward()
         self.policy_optim.step()
 
-        # Soft update target network
-        # if updates % self.target_update_interval == 0:
-        soft_update(self.critic_target, self.critic, self.tau)
-
-        return qf_loss.item(), policy_loss.item()
+        return qf1_loss.item(), policy_loss.item()
