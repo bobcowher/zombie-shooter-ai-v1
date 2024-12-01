@@ -91,7 +91,7 @@ class Actor(ActorCriticBase):
 
 
     def forward(self, x):
-        debug = True
+        debug = False
 
         if debug:
             print("Starting model output --- \n\n\n")
