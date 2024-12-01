@@ -64,7 +64,7 @@ class Agent(object):
                             action_dim=env.action_space.n, 
                             hidden_size=hidden_size).to(self.device)
 
-        self.policy.load_the_model()
+        # self.policy.load_the_model()
         
         self.policy_optim = Adam(self.policy.parameters(), lr=learning_rate)
 
@@ -106,7 +106,7 @@ class Agent(object):
             next_state, reward, done, truncated, info = self.env.step(action=action, repeat=self.step_repeat)
             next_state = torch.FloatTensor(next_state).unsqueeze(0).to(self.device)
 
-            print("Reward: ", reward)
+            # print("Reward: ", reward)
 
             # Store the transition in memory
             state = next_state  # Update current state
@@ -143,7 +143,7 @@ class Agent(object):
 
             while not done and episode_steps < max_episode_steps:
 
-                if epsilon < random.random():
+                if epsilon > random.random():
                     action = self.env.action_space.sample()
                 else:
                     action = self.select_action(state=state)
