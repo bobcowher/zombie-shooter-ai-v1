@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from sac_utils import *
+import time
 
 
 class ActorCriticBase(nn.Module):
@@ -22,7 +23,7 @@ class ActorCriticBase(nn.Module):
         conv_output_size = self.calculate_conv_output(observation_shape)
 
         # Batch Normalization
-        self.layer_norm1 = nn.LayerNorm(hidden_size)
+        self.layer_norm = nn.LayerNorm(hidden_size)
 
         # Fully connected layers
         self.fc1 = nn.Linear(conv_output_size, hidden_size)
@@ -36,10 +37,10 @@ class ActorCriticBase(nn.Module):
 
     def calculate_conv_output(self, observation_shape):
         x = torch.zeros(1, *observation_shape)
-        x = self.pool(F.relu(self.conv1(x)))  # Pooling after first conv layer
-        x = F.relu(self.conv2(x))             # No pooling after second to control size
-        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
-        x = F.relu(self.conv4(x))             # No pooling after second to control size
+        x = self.pool(F.leaky_relu(self.conv1(x)))  # Pooling after first conv layer
+        x = F.leaky_relu(self.conv2(x))             # No pooling after second to control size
+        x = self.pool(F.leaky_relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.leaky_relu(self.conv4(x))             # No pooling after second to control size
 
         return x.view(-1).shape[0]
 
@@ -66,17 +67,17 @@ class Critic(ActorCriticBase):
 
         x = x / 255 # Normalize values. 
 
-        x = self.pool(F.relu(self.conv1(x)))
-        x = F.relu(self.conv2(x))
-        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
-        x = F.relu(self.conv4(x)) 
+        x = self.pool(F.leaky_relu(self.conv1(x)))
+        x = F.leaky_relu(self.conv2(x))
+        x = self.pool(F.leaky_relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.leaky_relu(self.conv4(x)) 
         x = x.view(x.size(0), -1) 
 
         # Fully connected layers
         # print("Conv Output: ", x)
-        x = F.relu(self.layer_norm1(self.fc1(x)))
+        x = F.leaky_relu(self.layer_norm(self.fc1(x)))
         # print("X after layer norm: ", x)
-        x = F.relu(self.fc2(x))
+        x = F.leaky_relu(self.fc2(x))
         # print("X after layer 2: ", x)
         # x = F.tanh(self.output(x) / (x.abs().max() + 1e-6))
         x = self.output(x)
@@ -90,22 +91,44 @@ class Actor(ActorCriticBase):
 
 
     def forward(self, x):
+        debug = True
+
+        if debug:
+            print("Starting model output --- \n\n\n")
+            print("Model Input: ", x)
+
+        x = x / 255 # Normalize values. 
+
+        if debug:
+            print("Input after normalization: ", x)
+        
         # CNN forward pass
-        x = self.pool(F.relu(self.conv1(x)))
-        x = F.relu(self.conv2(x))
-        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
-        x = F.relu(self.conv4(x)) 
+        x = self.pool(F.leaky_relu(self.conv1(x)))
+        x = F.leaky_relu(self.conv2(x))
+        x = self.pool(F.leaky_relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.leaky_relu(self.conv4(x)) 
         x = x.view(x.size(0), -1) 
 
         # Fully connected layers
-        # print("Conv Output: ", x)
-        x = F.relu(self.layer_norm1(self.fc1(x)))
-        # print("X after layer norm: ", x)
-        x = F.relu(self.fc2(x))
-        # print("X after layer 2: ", x)
+        if debug:
+            print("Conv Output: ", x)
+        x = F.leaky_relu(self.layer_norm(self.fc1(x)))
+        if debug:
+            print("X after layer norm: ", x)
+        x = F.leaky_relu(self.layer_norm(self.fc2(x)))
+        if debug:
+            print("X after layer 2: ", x)
         x = self.output(x)
+        
+
         # x = F.tanh(self.output(x) / (x.abs().max() + 1e-6))  # Output logits for the action distribution
-        # print("X after output: ", x)
-        action_probs = F.softmax(x, dim=-1)
-        # print("Action Probs: ", action_probs)
-        return action_probs
+        
+        if debug:
+            print("X after output: ", x)
+        
+        if debug:
+            print("Action Probs: ", x)
+            print("After softmax", F.softmax(x, dim=-1))
+            # time.sleep(1)
+
+        return x

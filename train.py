@@ -17,9 +17,9 @@ epsilon = 1
 min_epsilon = 0.1
 epsilon_decay = 0.99
 gamma = 0.99
-alpha = 0.1
+alpha = 0.3
 
-hidden_size = 256
+hidden_size = 128
 
 dropout = 0
 

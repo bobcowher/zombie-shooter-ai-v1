@@ -39,7 +39,7 @@ class Agent(object):
                              action_dim=env.action_space.n, 
                              hidden_size=hidden_size).to(device=self.device)
         
-        self.critic1_optim = AdamW(self.critic1.parameters(), lr=learning_rate)
+        self.critic1_optim = AdamW(self.critic1.parameters(), lr=learning_rate * 3, weight_decay=0.0001)
 
         self.critic1_target = Critic(observation_shape=observation.shape, 
                                     action_dim=env.action_space.n, 
@@ -51,7 +51,7 @@ class Agent(object):
                              action_dim=env.action_space.n, 
                              hidden_size=hidden_size).to(device=self.device)
         
-        self.critic2_optim = AdamW(self.critic2.parameters(), lr=learning_rate)
+        self.critic2_optim = AdamW(self.critic2.parameters(), lr=learning_rate * 3, weight_decay=0.0001)
 
         self.critic2_target = Critic(observation_shape=observation.shape, 
                                     action_dim=env.action_space.n, 
@@ -124,7 +124,7 @@ class Agent(object):
         print(f"Episode Steps: {episode_steps}")
 
 
-    def train(self, episodes, max_episode_steps, summary_writer_suffix, batch_size, warmup=10):
+    def train(self, episodes, max_episode_steps, summary_writer_suffix, batch_size, warmup=10, epsilon=1, min_epsilon=0.1, epsilon_decay=0.99):
         summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{summary_writer_suffix}'
         writer = SummaryWriter(summary_writer_name)
 
@@ -138,12 +138,16 @@ class Agent(object):
             episode_steps = 0
             episode_start_time = time.time()
 
+            if epsilon > min_epsilon:
+                epsilon = epsilon * epsilon_decay
+
             while not done and episode_steps < max_episode_steps:
 
-                if episode < warmup:
+                if epsilon < random.random():
                     action = self.env.action_space.sample()
                 else:
                     action = self.select_action(state=state)
+
 
                 # Environment step
                 next_state, reward, done, truncated, info = self.env.step(action=action, repeat=self.step_repeat)
@@ -165,10 +169,14 @@ class Agent(object):
                     qf1_loss, policy_loss = self.update_parameters(batch_size=batch_size, updates=total_steps)
                     writer.add_scalar('Critic Loss', qf1_loss, total_steps)
                     writer.add_scalar('Actor Loss', policy_loss, total_steps)
+                    writer.add_scalar('Epsilon: ', epsilon, total_steps)
 
 
             # Save model after each episode
-            self.policy.save_the_model()
+            self.policy.save_the_model(weights_filename='models/policy.pt')
+            self.critic1.save_the_model(weights_filename='models/critic1.pt')
+            self.critic2.save_the_model(weights_filename='models/critic2.pt')
+
             
             # Log episode results to TensorBoard
             writer.add_scalar('Score', episode_reward, episode)
@@ -191,17 +199,37 @@ class Agent(object):
 
         # Compute target Q-values using double Q-network
         with torch.no_grad():
+
+            next_logits = self.policy(next_state_batch)  # Policy outputs logits
+            next_probs = F.softmax(next_logits, dim=-1)
+            next_dist = torch.distributions.Categorical(next_probs)
+            next_actions = next_dist.sample()  # Sample next actions
+
             next_q1_values = self.critic1_target(next_state_batch)
             next_q2_values = self.critic2_target(next_state_batch)
-            next_q_value = torch.min(next_q1_values, next_q2_values)  # Take the minimum Q-value
+            next_q_values = torch.min(next_q1_values, next_q2_values)  # Take the minimum Q-value
+            next_q_value = next_q_values.gather(1, next_actions.unsqueeze(-1))
 
-            q_target = reward_batch + (1 - done_batch) * self.gamma * next_q_value
+            # if updates % 1000 == 0:
+            #     print("Next Q1 Values: ", next_q1_values)
+            #     print("Next Q2 Values: ", next_q2_values)
+            #     print("Next Q Values: ", next_q_value)
+
+            # Add entropy term to the target
+            next_log_probs = next_dist.log_prob(next_actions).unsqueeze(-1)  # Shape: [batch_size, 1]
+            q_target = reward_batch + (1 - done_batch) * self.gamma * (next_q_value - self.alpha * next_log_probs)
+
+            # print("Q Target: ", q_target)
 
         # Compute Q-value predictions for both critics
         q1_values = self.critic1(state_batch).gather(1, action_batch)
         q2_values = self.critic2(state_batch).gather(1, action_batch)
 
         # Compute losses for both critics
+        # print("Q1 Values: ", q1_values)
+        # print("Q2 Values: ", q2_values)
+        # print("Q Target: ", q_target)
+
         qf1_loss = F.mse_loss(q1_values, q_target)
         qf2_loss = F.mse_loss(q2_values, q_target)
 
@@ -222,6 +250,8 @@ class Agent(object):
         probs = F.softmax(logits, dim=-1)
         dist = torch.distributions.Categorical(probs)
         actions = dist.sample()
+        # print("Actions: ", actions)
+        # time.sleep(1)
         log_probs = dist.log_prob(actions)
 
         # Use minimum Q-value for policy gradient
