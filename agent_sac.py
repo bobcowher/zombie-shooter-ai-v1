@@ -39,7 +39,7 @@ class Agent(object):
                              action_dim=env.action_space.n, 
                              hidden_size=hidden_size).to(device=self.device)
         
-        self.critic1_optim = AdamW(self.critic1.parameters(), lr=learning_rate * 3, weight_decay=0.0001)
+        self.critic1_optim = Adam(self.critic1.parameters(), lr=learning_rate)
 
         self.critic1_target = Critic(observation_shape=observation.shape, 
                                     action_dim=env.action_space.n, 
@@ -51,7 +51,7 @@ class Agent(object):
                              action_dim=env.action_space.n, 
                              hidden_size=hidden_size).to(device=self.device)
         
-        self.critic2_optim = AdamW(self.critic2.parameters(), lr=learning_rate * 3, weight_decay=0.0001)
+        self.critic2_optim = Adam(self.critic2.parameters(), lr=learning_rate)
 
         self.critic2_target = Critic(observation_shape=observation.shape, 
                                     action_dim=env.action_space.n, 
@@ -87,7 +87,7 @@ class Agent(object):
 
     def test(self, max_episode_steps):
 
-        self.policy.load_the_model()
+        self.policy.load_the_model(weights_filename='models/policy.pt')
 
         total_steps = 0
 
