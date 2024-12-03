@@ -37,10 +37,10 @@ class ActorCriticBase(nn.Module):
 
     def calculate_conv_output(self, observation_shape):
         x = torch.zeros(1, *observation_shape)
-        x = self.pool(F.leaky_relu(self.conv1(x)))  # Pooling after first conv layer
-        x = F.leaky_relu(self.conv2(x))             # No pooling after second to control size
-        x = self.pool(F.leaky_relu(self.conv3(x)))  # Pooling after third conv layer
-        x = F.leaky_relu(self.conv4(x))             # No pooling after second to control size
+        x = self.pool(F.relu(self.conv1(x)))  # Pooling after first conv layer
+        x = F.relu(self.conv2(x))             # No pooling after second to control size
+        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x))             # No pooling after second to control size
 
         return x.view(-1).shape[0]
 
@@ -67,17 +67,17 @@ class Critic(ActorCriticBase):
 
         x = x / 255 # Normalize values. 
 
-        x = self.pool(F.leaky_relu(self.conv1(x)))
-        x = F.leaky_relu(self.conv2(x))
-        x = self.pool(F.leaky_relu(self.conv3(x)))  # Pooling after third conv layer
-        x = F.leaky_relu(self.conv4(x)) 
+        x = self.pool(F.relu(self.conv1(x)))
+        x = F.relu(self.conv2(x))
+        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x)) 
         x = x.view(x.size(0), -1) 
 
         # Fully connected layers
         # print("Conv Output: ", x)
-        x = F.leaky_relu(self.layer_norm(self.fc1(x)))
+        x = F.relu(self.layer_norm(self.fc1(x)))
         # print("X after layer norm: ", x)
-        x = F.leaky_relu(self.fc2(x))
+        x = F.relu(self.fc2(x))
         # print("X after layer 2: ", x)
         # x = F.tanh(self.output(x) / (x.abs().max() + 1e-6))
         x = self.output(x)
@@ -103,19 +103,19 @@ class Actor(ActorCriticBase):
             print("Input after normalization: ", x)
         
         # CNN forward pass
-        x = self.pool(F.leaky_relu(self.conv1(x)))
-        x = F.leaky_relu(self.conv2(x))
-        x = self.pool(F.leaky_relu(self.conv3(x)))  # Pooling after third conv layer
-        x = F.leaky_relu(self.conv4(x)) 
+        x = self.pool(F.relu(self.conv1(x)))
+        x = F.relu(self.conv2(x))
+        x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x)) 
         x = x.view(x.size(0), -1) 
 
         # Fully connected layers
         if debug:
             print("Conv Output: ", x)
-        x = F.leaky_relu(self.layer_norm(self.fc1(x)))
+        x = F.relu(self.layer_norm(self.fc1(x)))
         if debug:
             print("X after layer norm: ", x)
-        x = F.leaky_relu(self.layer_norm(self.fc2(x)))
+        x = F.relu(self.layer_norm(self.fc2(x)))
         if debug:
             print("X after layer 2: ", x)
         x = self.output(x)
