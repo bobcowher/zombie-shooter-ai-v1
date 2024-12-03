@@ -22,9 +22,6 @@ class ActorCriticBase(nn.Module):
 
         conv_output_size = self.calculate_conv_output(observation_shape)
 
-        # Batch Normalization
-        self.layer_norm = nn.LayerNorm(hidden_size)
-
         # Fully connected layers
         self.fc1 = nn.Linear(conv_output_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
@@ -74,14 +71,9 @@ class Critic(ActorCriticBase):
         x = x.view(x.size(0), -1) 
 
         # Fully connected layers
-        # print("Conv Output: ", x)
-        x = F.relu(self.layer_norm(self.fc1(x)))
-        # print("X after layer norm: ", x)
+        x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        # print("X after layer 2: ", x)
-        # x = F.tanh(self.output(x) / (x.abs().max() + 1e-6))
         x = self.output(x)
-        # print("X after tanh and output: ", x)
         return x
     
 
@@ -112,10 +104,10 @@ class Actor(ActorCriticBase):
         # Fully connected layers
         if debug:
             print("Conv Output: ", x)
-        x = F.relu(self.layer_norm(self.fc1(x)))
+        x = F.relu(self.fc1(x))
         if debug:
             print("X after layer norm: ", x)
-        x = F.relu(self.layer_norm(self.fc2(x)))
+        x = F.relu(self.fc2(x))
         if debug:
             print("X after layer 2: ", x)
         x = self.output(x)
