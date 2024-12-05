@@ -5,21 +5,21 @@ import time
 from agent_sac import Agent
 
 
-episodes = 3000
+episodes = 9000
 max_episode_steps = 2400
 total_steps = 0
 step_repeat = 4
 max_episode_steps = max_episode_steps / step_repeat
 
-batch_size = 64
+batch_size = 32
 learning_rate = 0.0001
 epsilon = 1
 min_epsilon = 0.15
-epsilon_decay = 0.995
+epsilon_decay = 0.99
 gamma = 0.99
 alpha = 0.1
 
-hidden_size = 512
+hidden_size = 1028
 
 dropout = 0
 
@@ -33,7 +33,7 @@ FPS = 60
 env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=False, render_mode="rgb")
 
 
-summary_writer_suffix = f'sac_a={alpha}_hs={hidden_size}_me={min_epsilon}_lr={learning_rate}_Adam'
+summary_writer_suffix = f'sac_a={alpha}_hs={hidden_size}_me={min_epsilon}_lr={learning_rate}_Adam_no_ln'
 
 agent = Agent(env=env, alpha=alpha, hidden_size=hidden_size, learning_rate=learning_rate, gamma=gamma)
 
