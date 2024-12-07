@@ -11,7 +11,7 @@ total_steps = 0
 step_repeat = 4
 max_episode_steps = max_episode_steps / step_repeat
 
-batch_size = 32
+batch_size = 64 
 learning_rate = 0.0001
 epsilon = 1
 min_epsilon = 0.15
@@ -33,7 +33,7 @@ FPS = 60
 env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=False, render_mode="rgb")
 
 
-summary_writer_suffix = f'sac_a={alpha}_hs={hidden_size}_me={min_epsilon}_lr={learning_rate}_Adam_no_ln'
+summary_writer_suffix = f'sac_a={alpha}_hs={hidden_size}_me={min_epsilon}_lr={learning_rate}_Adam_epsilon_decay_slow'
 
 agent = Agent(env=env, alpha=alpha, hidden_size=hidden_size, learning_rate=learning_rate, gamma=gamma)
 

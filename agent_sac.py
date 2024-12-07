@@ -14,7 +14,7 @@ from pympler import asizeof
 class Agent(object):
     def __init__(self, env, hidden_size=512, gamma=0.99, 
                  tau=0.005, alpha=0.1, target_update_interval=1, 
-                 learning_rate=0.0001, step_repeat=4):
+                 learning_rate=0.0001, step_repeat=4, load_pretrained=False):
 
         self.gamma = gamma
         self.tau = tau
@@ -33,40 +33,42 @@ class Agent(object):
         print(f"Initialized agents on device: {self.device}")
         print(f"Memory Size: {asizeof.asizeof(self.memory) / (1024 * 1024 * 1024):2f} Gb")
 
+        # Define the policy network 
+        self.policy = Actor(observation_shape=observation.shape, 
+                            action_dim=env.action_space.n, 
+                            hidden_size=hidden_size).to(self.device) 
 
-        # Q-network now outputs values for each discrete action
+        # Define the critic networks
         self.critic1 = Critic(observation_shape=observation.shape, 
                              action_dim=env.action_space.n, 
                              hidden_size=hidden_size).to(device=self.device)
         
-        self.critic1_optim = Adam(self.critic1.parameters(), lr=learning_rate)
+        self.critic2 = Critic(observation_shape=observation.shape, 
+                             action_dim=env.action_space.n, 
+                             hidden_size=hidden_size).to(device=self.device)
+        
 
         self.critic1_target = Critic(observation_shape=observation.shape, 
                                     action_dim=env.action_space.n, 
                                     hidden_size=hidden_size).to(device=self.device)
 
-        hard_update(self.critic1_target, self.critic1)
-
-        self.critic2 = Critic(observation_shape=observation.shape, 
-                             action_dim=env.action_space.n, 
-                             hidden_size=hidden_size).to(device=self.device)
-        
-        self.critic2_optim = Adam(self.critic2.parameters(), lr=learning_rate)
-
         self.critic2_target = Critic(observation_shape=observation.shape, 
                                     action_dim=env.action_space.n, 
                                     hidden_size=hidden_size).to(device=self.device)
 
+        # Load models, if pre-trained is selected and run a hard update. 
+        if load_pretrained:
+            self.policy.load_the_model(weights_filename='models/policy.pt')
+            self.critic1.load_the_model(weights_filename='models/critic1.pt')
+            self.critic1.load_the_model(weights_filename='models/critic1.pt')
+        
+        hard_update(self.critic1_target, self.critic1)
         hard_update(self.critic2_target, self.critic2)
 
-        # Policy network for discrete actions: outputs logits for each action
-        self.policy = Actor(observation_shape=observation.shape, 
-                            action_dim=env.action_space.n, 
-                            hidden_size=hidden_size).to(self.device)
-
-        # self.policy.load_the_model()
-        
+        # Load optimizers.  
         self.policy_optim = Adam(self.policy.parameters(), lr=learning_rate)
+        self.critic1_optim = Adam(self.critic1.parameters(), lr=learning_rate)
+        self.critic2_optim = Adam(self.critic2.parameters(), lr=learning_rate)
 
 
     def select_action(self, state, evaluate=False):
@@ -167,9 +169,10 @@ class Agent(object):
                 # Sample a batch and update parameters if enough samples are available
                 if self.memory.can_sample(batch_size):
                     qf1_loss, policy_loss = self.update_parameters(batch_size=batch_size, updates=total_steps)
-                    writer.add_scalar('Critic Loss', qf1_loss, total_steps)
-                    writer.add_scalar('Actor Loss', policy_loss, total_steps)
-                    writer.add_scalar('Epsilon: ', epsilon, total_steps)
+                    writer.add_scalar('Loss/Critic', qf1_loss, total_steps)
+                    writer.add_scalar('Loss/Actor', policy_loss, total_steps)
+                    writer.add_scalar('Parameters/Epsilon', epsilon, total_steps)
+                    writer.add_scalar('Parameters/Epsilon Decay', epsilon_decay, total_steps)
 
 
             # Save model after each episode
@@ -210,10 +213,10 @@ class Agent(object):
             next_q_values = torch.min(next_q1_values, next_q2_values)  # Take the minimum Q-value
             next_q_value = next_q_values.gather(1, next_actions.unsqueeze(-1))
 
-            # if updates % 1000 == 0:
-            #     print("Next Q1 Values: ", next_q1_values)
-            #     print("Next Q2 Values: ", next_q2_values)
-            #     print("Next Q Values: ", next_q_value)
+            if updates % 1000 == 0:
+                print("Next Q1 Values: ", next_q1_values)
+                print("Next Q2 Values: ", next_q2_values)
+                print("Next Q Values: ", next_q_value)
 
             # Add entropy term to the target
             next_log_probs = next_dist.log_prob(next_actions).unsqueeze(-1)  # Shape: [batch_size, 1]
