@@ -16,8 +16,8 @@ learning_rate = 0.0001
 epsilon = 1
 min_epsilon = 0.15
 epsilon_decay = 0.99
-gamma = 0.99
-alpha = 0.1
+gamma = 0.9
+alpha = 0.01
 
 hidden_size = 1028
 
@@ -35,7 +35,7 @@ env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, worl
 
 summary_writer_suffix = f'sac_a={alpha}_hs={hidden_size}_me={min_epsilon}_lr={learning_rate}_Adam_epsilon_decay_slow'
 
-agent = Agent(env=env, alpha=alpha, hidden_size=hidden_size, learning_rate=learning_rate, gamma=gamma)
+agent = Agent(env=env, alpha=alpha, hidden_size=hidden_size, learning_rate=learning_rate, gamma=gamma, load_pretrained=True)
 
     # def __init__(self, num_inputs, num_actions, gamma, tau, alpha, target_update_interval,
     #              automatic_entropy_tuning, hidden_size, learning_rate):

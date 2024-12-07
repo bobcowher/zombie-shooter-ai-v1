@@ -50,8 +50,9 @@ class ActorCriticBase(nn.Module):
         try:
             self.load_state_dict(torch.load(weights_filename))
             print(f"Successfully loaded weights file {weights_filename}")
-        except:
+        except Exception as e:
             print(f"No weights file available at {weights_filename}")
+            print(e)
 
 
 class Critic(ActorCriticBase):

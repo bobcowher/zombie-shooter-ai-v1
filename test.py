@@ -22,9 +22,9 @@ epsilon = 0.05
 min_epsilon = 0.1
 epsilon_decay = 0.99
 gamma = 0.99
-hidden_size = 512
+hidden_size = 1028 
 
-agent = Agent(env=env, hidden_size=hidden_size)
+agent = Agent(env=env, hidden_size=hidden_size, load_pretrained=True)
 
 agent.test(max_episode_steps=1200)
 

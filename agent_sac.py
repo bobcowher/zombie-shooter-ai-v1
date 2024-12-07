@@ -26,6 +26,8 @@ class Agent(object):
 
         self.env = env
 
+        self.noise_scale = 0.1
+
         observation, info = self.env.reset()
 
         self.memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=self.device)
@@ -73,6 +75,13 @@ class Agent(object):
 
     def select_action(self, state, evaluate=False):
         logits = self.policy(state)
+        logits_mean = logits.mean(dim=-1, keepdim=True)
+        logits_std  = logits.std(dim=-1, keepdim=True) + 1e-8
+        logits = (logits - logits_mean) / logits_std
+        
+        if evaluate == False:
+            logits = logits + torch.randn_like(logits) * self.noise_scale
+
         probs = F.softmax(logits, dim=-1)
         # print("Logits: ", logits)
         # print("Probs: ", probs)
@@ -84,12 +93,12 @@ class Agent(object):
             action = dist.sample()
 
         # print("Actions selected: ", action)
-        # time.sleep(1)
+        # tim.sleep(1)
         return action.item()
 
     def test(self, max_episode_steps):
 
-        self.policy.load_the_model(weights_filename='models/policy.pt')
+        #self.policy.load_the_model(weights_filename='models/policy.pt')
 
         total_steps = 0
 
@@ -204,7 +213,11 @@ class Agent(object):
         with torch.no_grad():
 
             next_logits = self.policy(next_state_batch)  # Policy outputs logits
-            next_probs = F.softmax(next_logits, dim=-1)
+            next_logits_mean = next_logits.mean(dim=-1, keepdim=True)
+            next_logits_std  = next_logits.std(dim=-1, keepdim=True) + 1e-8
+            normalized_logits = (next_logits - next_logits_mean) / next_logits_std
+            noisy_logits = normalized_logits + torch.randn_like(normalized_logits) * self.noise_scale
+            next_probs = F.softmax(noisy_logits, dim=-1)
             next_dist = torch.distributions.Categorical(next_probs)
             next_actions = next_dist.sample()  # Sample next actions
 
@@ -213,15 +226,25 @@ class Agent(object):
             next_q_values = torch.min(next_q1_values, next_q2_values)  # Take the minimum Q-value
             next_q_value = next_q_values.gather(1, next_actions.unsqueeze(-1))
 
-            if updates % 1000 == 0:
-                print("Next Q1 Values: ", next_q1_values)
-                print("Next Q2 Values: ", next_q2_values)
-                print("Next Q Values: ", next_q_value)
 
             # Add entropy term to the target
             next_log_probs = next_dist.log_prob(next_actions).unsqueeze(-1)  # Shape: [batch_size, 1]
-            q_target = reward_batch + (1 - done_batch) * self.gamma * (next_q_value - self.alpha * next_log_probs)
+            q_target = reward_batch + self.gamma * (1 - done_batch) * (next_q_value - (self.alpha * next_log_probs))
 
+            if updates % 1000 == 0:
+                print("Next Q1 Values: ", next_q1_values[:5])
+                print("Next Q2 Values: ", next_q2_values[:5])
+                print("Next Q Values: ", next_q_value[:5])
+                print("Q Target: ", q_target[:5])
+                print("Done Batch: ", done_batch[:5])
+                print("1 - Done Batch: ", (1 - done_batch[:5]))
+                print("Next Logits: ", next_logits[:5])
+                print("Next Normalized Logits: ", normalized_logits[:5])
+                print("Noisy Logits: ", noisy_logits[:5])
+                print("Next Probs: ", next_probs[:5])
+                print("Next Dist: ", next_dist)
+                print("Next Actions: ", next_actions[:5])
+                print("Next Log Probs: ", next_log_probs[:5])
             # print("Q Target: ", q_target)
 
         # Compute Q-value predictions for both critics
