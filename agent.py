@@ -80,14 +80,13 @@ class Agent():
                 if self.memory.can_sample(batch_size):
                     states, actions, rewards, next_states, dones = self.memory.sample_buffer(batch_size)
 
+                    dones = dones.unsqueeze(1).float()
+
                     # Get Q-values for the current states
                     q_values = self.model(states)
 
                     # Ensure actions are int64 and reshape for gather
                     actions = actions.unsqueeze(1).long()
-
-                    # print("Q-values shape:", q_values.shape)
-                    # print("Actions shape:", actions.shape)
 
                     # Gather Q-values corresponding to the taken actions
                     qsa_b = q_values.gather(1, actions)
@@ -101,14 +100,20 @@ class Agent():
 
 
                     # Compute the target using the Bellman equation
-                    target_b = rewards.unsqueeze(1) + (~dones.unsqueeze(1)) * self.gamma * max_next_qsa_b
+                    target_b = rewards.unsqueeze(1) + (1 - dones) * self.gamma * max_next_qsa_b
 
                     # Ensure target_b has the same shape as qsa_b
                     target_b = target_b.expand_as(qsa_b)
 
-                    # print("QSA batch", qsa_b)
-                    # print("Target batch", target_b)
-                    # time.sleep(5)
+                    if episode % 5 == 0 and episode_steps == 200:    
+                        print("QSA batch", qsa_b)
+                        print("Target batch", target_b[:5])
+                        print("Q-values shape:", q_values.shape) 
+                        print("Q-values :", q_values[:5]) 
+                        print("Actions shape:", actions.shape) # time.sleep(5)
+                        print("Actions: ", actions)
+                        print("Dones: ", dones[:5])
+                        print("Dones - Inverse: ", 1 - dones[:5])
 
 
                     # Calculate the loss
