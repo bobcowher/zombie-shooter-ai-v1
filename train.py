@@ -32,11 +32,12 @@ FPS = 60
 env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=False, render_mode="rgb")
 
 
-summary_writer_suffix = f'dqn_lr={learning_rate}_hl={hidden_layer}_l1_loss_bs={batch_size}_dropout={dropout}_big_lr'
+summary_writer_suffix = f'dqn_lr={learning_rate}_hl={hidden_layer}_mse_loss_bs={batch_size}_dropout={dropout}_frequent_soft_update_deep_cnn'
 
 agent = Agent(env, dropout=0.2, hidden_layer=hidden_layer,
               learning_rate=learning_rate, step_repeat=step_repeat,
               gamma=gamma)
+
 
 # Training Phase 1
 
@@ -45,6 +46,6 @@ agent.train(2000, max_episode_steps=max_episode_steps, summary_writer_suffix=sum
             min_epsilon=min_epsilon)
     
 
-agent.train(2000, max_episode_steps=max_episode_steps * 2, summary_writer_suffix=summary_writer_suffix + "-phase-2",
-            batch_size=batch_size, epsilon=0.1, epsilon_decay=epsilon_decay,
-            min_epsilon=min_epsilon)
+#agent.train(4000, max_episode_steps=max_episode_steps * 2, summary_writer_suffix=summary_writer_suffix + "-phase-2",
+#            batch_size=batch_size, epsilon=0.1, epsilon_decay=epsilon_decay,
+#            min_epsilon=min_epsilon)

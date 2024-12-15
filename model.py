@@ -1,15 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import time
 
 class ZombieNet(nn.Module):
     def __init__(self, action_dim, hidden_dim=256, dropout=0, observation_shape=None):
         super(ZombieNet, self).__init__()
-        
+
         # CNN layers with a third layer added
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=4, stride=2)
         self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2)  # Third convolutional layer
+        self.conv4 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)  # Third convolutional layer
+
 
         # Pooling layer for additional downsampling
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -33,13 +36,24 @@ class ZombieNet(nn.Module):
         x = self.pool(F.relu(self.conv1(x)))  # Pooling after first conv layer
         x = F.relu(self.conv2(x))             # No pooling after second to control size
         x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x))             # No pooling after second to control size
+
         return x.view(-1).shape[0]
 
     def forward(self, x):
+
+        x = x / 255
+        # print("Input value: ", x)
         x = self.pool(F.relu(self.conv1(x)))
+        # print("CNN 1 Output", x)
         x = F.relu(self.conv2(x))
+        # print("CNN 2 Output", x)
         x = self.pool(F.relu(self.conv3(x)))  # Pooling after third conv layer
+        x = F.relu(self.conv4(x)) 
         x = x.view(x.size(0), -1)  # Flatten
+        # print(x)
+        # print("Flattened CNN 3 Output", x)
+        # time.sleep(1)
         
         # Fully connected layers with optional dropout
         x = F.relu(self.fc1(x))
@@ -50,7 +64,11 @@ class ZombieNet(nn.Module):
             x = F.dropout(x, p=self.dropout)
         x = F.relu(self.fc3(x))
         
-        return self.output(x)
+        
+        output = self.output(x)
+        # print("Raw model output: ", output)
+
+        return output
 
     def save_the_model(self, filename='models/latest.pt'):
         torch.save(self.state_dict(), filename)

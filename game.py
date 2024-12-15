@@ -285,7 +285,7 @@ class ZombieShooter(gym.Env):
         # Convert to PyTorch tensor
         observation = torch.from_numpy(grayscale).float().unsqueeze(0)
 
-        observation = observation / 255
+        # observation = observation / 255 # Reducing to decimals at this point doesn't work with a uint 8 replay buffer. 
 
         return observation
 
@@ -511,7 +511,11 @@ class ZombieShooter(gym.Env):
             #     self.clock.tick(self.fps)
             # else:
             #     self.clock.tick(1000)
-            self.clock.tick(self.fps)
+            # self.clock.tick(self.fps)
+            if self.human:
+                self.clock.tick(self.fps)
+            else:
+                self.clock.tick()
 
             if(self.level_goal <= self.player.score):
                 self.start_next_level()

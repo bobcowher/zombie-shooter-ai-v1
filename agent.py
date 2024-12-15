@@ -29,7 +29,7 @@ class Agent():
 
         self.model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
 
-        # model.load_the_model()
+        # self.model.load_the_model()
 
         self.target_model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
         self.target_model.load_state_dict(self.model.state_dict())
@@ -84,7 +84,10 @@ class Agent():
                     q_values = self.model(states)
 
                     # Ensure actions are int64 and reshape for gather
-                    actions = actions.long()
+                    actions = actions.unsqueeze(1).long()
+
+                    # print("Q-values shape:", q_values.shape)
+                    # print("Actions shape:", actions.shape)
 
                     # Gather Q-values corresponding to the taken actions
                     qsa_b = q_values.gather(1, actions)
@@ -95,11 +98,18 @@ class Agent():
                     # Calculate max Q-value for next states along action dimension
                     max_next_qsa_b = torch.max(next_q_values, dim=1, keepdim=True)[0]
 
+
+
                     # Compute the target using the Bellman equation
                     target_b = rewards.unsqueeze(1) + (~dones.unsqueeze(1)) * self.gamma * max_next_qsa_b
 
                     # Ensure target_b has the same shape as qsa_b
                     target_b = target_b.expand_as(qsa_b)
+
+                    # print("QSA batch", qsa_b)
+                    # print("Target batch", target_b)
+                    # time.sleep(5)
+
 
                     # Calculate the loss
                     loss = F.smooth_l1_loss(qsa_b, target_b)
@@ -110,10 +120,10 @@ class Agent():
                     self.model.zero_grad()
                     loss.backward()
                     self.optimizer.step()
-                
 
-            if episode % 4 == 0:
-                self.target_model.load_state_dict(self.model.state_dict())
+                    if episode_steps % 4 == 0:
+                        soft_update(self.target_model, self.model)
+                                
 
 
             self.model.save_the_model()
