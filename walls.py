@@ -2,7 +2,7 @@ import pygame
 
 walls_1 = [
             pygame.Rect(200, 200, 400, 50),  # A horizontal wall
-            pygame.Rect(850, 500, 50, 400),  # A vertical wall
+            # pygame.Rect(850, 500, 50, 400),  # A vertical wall
             pygame.Rect(1000, 1000, 300, 50), # Another horizontal wall
             # Add more walls as needed
         ]
