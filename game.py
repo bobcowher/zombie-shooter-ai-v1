@@ -326,7 +326,8 @@ class ZombieShooter(gym.Env):
             down = True if action == 2 else False
             left = True if action == 3 else False
             right = True if action == 4 else False
-            switch_gun = True if action == 5 else False
+            # switch_gun = True if action == 5 else False
+            switch_gun = False
             fire = True if action == 6 else False
             pause = False
 

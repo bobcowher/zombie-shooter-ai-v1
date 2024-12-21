@@ -5,8 +5,8 @@ import time
 from agent import Agent
 
 
-episodes = 3000
-max_episode_steps = 1200
+episodes = 10000
+max_episode_steps = 10000
 total_steps = 0
 step_repeat = 4
 max_episode_steps = max_episode_steps / step_repeat
@@ -18,7 +18,7 @@ min_epsilon = 0.1
 epsilon_decay = 0.995
 gamma = 0.99
 
-hidden_layer = 512
+hidden_layer = 1024
 
 dropout = 0.2
 
@@ -32,7 +32,7 @@ FPS = 60
 env = ZombieShooter(window_width=WINDOW_WIDTH, window_height=WINDOW_HEIGHT, world_height=WORLD_HEIGHT, world_width=WORLD_WIDTH, fps=FPS, sound=False, render_mode="rgb")
 
 
-summary_writer_suffix = f'dqn_lr={learning_rate}_hl={hidden_layer}_mse_loss_bs={batch_size}_dropout={dropout}_frequent_soft_update_deep_cnn'
+summary_writer_suffix = f'dqn_lr={learning_rate}_hl={hidden_layer}_mse_loss_bs={batch_size}_dropout={dropout}_double_dqn'
 
 agent = Agent(env, dropout=0.2, hidden_layer=hidden_layer,
               learning_rate=learning_rate, step_repeat=step_repeat,
@@ -41,11 +41,8 @@ agent = Agent(env, dropout=0.2, hidden_layer=hidden_layer,
 
 # Training Phase 1
 
-agent.train(2000, max_episode_steps=max_episode_steps, summary_writer_suffix=summary_writer_suffix + "-phase-1",
+agent.train(episodes=episodes, max_episode_steps=max_episode_steps, summary_writer_suffix=summary_writer_suffix + "-phase-1",
             batch_size=batch_size, epsilon=epsilon, epsilon_decay=epsilon_decay,
             min_epsilon=min_epsilon)
     
 
-#agent.train(4000, max_episode_steps=max_episode_steps * 2, summary_writer_suffix=summary_writer_suffix + "-phase-2",
-#            batch_size=batch_size, epsilon=0.1, epsilon_decay=epsilon_decay,
-#            min_epsilon=min_epsilon)

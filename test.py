@@ -37,18 +37,22 @@ epsilon = 0.05
 min_epsilon = 0.1
 epsilon_decay = 0.99
 gamma = 0.99
+hidden_layer = 1024
+
 
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=device)
 
-model = ZombieNet(action_dim=env.action_space.n, hidden_dim=128, observation_shape=observation.shape).to(device)
+model1 = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, observation_shape=observation.shape).to(device)
+model2 = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, observation_shape=observation.shape).to(device)
 
-model.load_the_model()
+model1.load_the_model(filename='models/dqn1.pt')
+model2.load_the_model(filename='models/dqn2.pt')
 
-model.eval()
+model1.eval()
+model2.eval()
 
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # critic_1 = Critic()
 
 step_repeat = 4
@@ -68,7 +72,10 @@ for episode in range(episodes):
             action = env.action_space.sample()
         else:
             # print(state)            
-            q_values = model.forward(state.unsqueeze(0).to(device))[0]
+            model1_q_values = model1.forward(state.unsqueeze(0).to(device))[0]
+            model2_q_values = model2.forward(state.unsqueeze(0).to(device))[0]
+            q_values = torch.min(model1_q_values, model2_q_values)
+
             action = torch.argmax(q_values, dim=-1, keepdim=True)
 
         next_state, reward, done, truncated, info = env.step(action=action, repeat=step_repeat)

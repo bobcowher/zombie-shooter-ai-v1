@@ -9,7 +9,7 @@ import time
 from torch.utils.tensorboard import SummaryWriter
 import random
 from pympler import asizeof
-
+import os
 
 class Agent():
 
@@ -27,27 +27,32 @@ class Agent():
 
         self.memory = ReplayBuffer(max_size=500000, input_shape=observation.shape, n_actions=env.action_space.n, device=self.device)
 
-        self.model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
+        self.model_1 = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
+        self.model_2 = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
 
-        # self.model.load_the_model()
+        self.target_model_1 = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
+        self.target_model_2 = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
 
-        self.target_model = ZombieNet(action_dim=env.action_space.n, hidden_dim=hidden_layer, dropout=dropout, observation_shape=observation.shape).to(self.device)
-        self.target_model.load_state_dict(self.model.state_dict())
+        # Initialize target networks with model parameters
+        self.target_model_1.load_state_dict(self.model_1.state_dict())
+        self.target_model_2.load_state_dict(self.model_2.state_dict())
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.optimizer_1 = optim.Adam(self.model_1.parameters(), lr=learning_rate)
+        self.optimizer_2 = optim.Adam(self.model_2.parameters(), lr=learning_rate)
 
         self.learning_rate = learning_rate
 
         print(f"Initialized agents on device: {self.device}")
         print(f"Memory Size: {asizeof.asizeof(self.memory) / (1024 * 1024 * 1024):2f} Gb")
 
-
     def train(self, episodes, max_episode_steps, summary_writer_suffix, batch_size, epsilon, epsilon_decay, min_epsilon):
         summary_writer_name = f'runs/{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}_{summary_writer_suffix}'
         writer = SummaryWriter(summary_writer_name)
 
-        total_steps = 0
+        if not os.path.exists('models'):
+            os.makedirs('models')
 
+        total_steps = 0
 
         for episode in range(episodes):
 
@@ -63,9 +68,10 @@ class Agent():
                 if random.random() < epsilon:
                     action = self.env.action_space.sample()
                 else:
-                    # print(state)            
-                    q_values = self.model.forward(state.unsqueeze(0).to(self.device))[0]
-                    action = torch.argmax(q_values, dim=-1, keepdim=True)
+                    q_values_1 = self.model_1.forward(state.unsqueeze(0).to(self.device))[0]
+                    q_values_2 = self.model_2.forward(state.unsqueeze(0).to(self.device))[0]
+                    q_values = torch.min(q_values_1, q_values_2)
+                    action = torch.argmax(q_values, dim=-1).item()
 
                 next_state, reward, done, truncated, info = self.env.step(action=action, repeat=self.step_repeat)
 
@@ -82,68 +88,59 @@ class Agent():
 
                     dones = dones.unsqueeze(1).float()
 
-                    # Get Q-values for the current states
-                    q_values = self.model(states)
-
-                    # Ensure actions are int64 and reshape for gather
+                    # Current Q-values from both models
+                    q_values_1 = self.model_1(states)
+                    q_values_2 = self.model_2(states)
                     actions = actions.unsqueeze(1).long()
+                    qsa_b_1 = q_values_1.gather(1, actions)
+                    qsa_b_2 = q_values_2.gather(1, actions)
 
-                    # Gather Q-values corresponding to the taken actions
-                    qsa_b = q_values.gather(1, actions)
+                    # Action selection using the main models
+                    next_actions_1 = torch.argmax(self.model_1(next_states), dim=1, keepdim=True)
+                    next_actions_2 = torch.argmax(self.model_2(next_states), dim=1, keepdim=True)
 
-                    # Get target Q-values for next states
-                    next_q_values = self.target_model(next_states)
+                    # Q-value evaluation using the target models
+                    next_q_values_1 = self.target_model_1(next_states).gather(1, next_actions_1)
+                    next_q_values_2 = self.target_model_2(next_states).gather(1, next_actions_2)
 
-                    # Calculate max Q-value for next states along action dimension
-                    max_next_qsa_b = torch.max(next_q_values, dim=1, keepdim=True)[0]
+                    # Take the minimum of the next Q-values
+                    next_q_values = torch.min(next_q_values_1, next_q_values_2)
 
+                    # Compute the target using Double DQN with minimization
+                    target_b = rewards.unsqueeze(1) + (1 - dones) * self.gamma * next_q_values
 
+                    # Calculate the loss for both models
+                    loss_1 = F.smooth_l1_loss(qsa_b_1, target_b.detach())
+                    loss_2 = F.smooth_l1_loss(qsa_b_2, target_b.detach())
 
-                    # Compute the target using the Bellman equation
-                    target_b = rewards.unsqueeze(1) + (1 - dones) * self.gamma * max_next_qsa_b
+                    writer.add_scalar("Loss/Model_1", loss_1.item(), total_steps)
+                    writer.add_scalar("Loss/Model_2", loss_2.item(), total_steps)
 
-                    # Ensure target_b has the same shape as qsa_b
-                    target_b = target_b.expand_as(qsa_b)
+                    # Backpropagation and optimization step for both models
+                    self.model_1.zero_grad()
+                    loss_1.backward()
+                    self.optimizer_1.step()
 
-                    if episode % 5 == 0 and episode_steps == 200:    
-                        print("QSA batch", qsa_b)
-                        print("Target batch", target_b[:5])
-                        print("Q-values shape:", q_values.shape) 
-                        print("Q-values :", q_values[:5]) 
-                        print("Actions shape:", actions.shape) # time.sleep(5)
-                        print("Actions: ", actions)
-                        print("Dones: ", dones[:5])
-                        print("Dones - Inverse: ", 1 - dones[:5])
+                    self.model_2.zero_grad()
+                    loss_2.backward()
+                    self.optimizer_2.step()
 
-
-                    # Calculate the loss
-                    loss = F.smooth_l1_loss(qsa_b, target_b)
-
-                    writer.add_scalar("Loss", loss, total_steps)
-                    
-                    # Backpropagation and optimization step
-                    self.model.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
-
+                    # Update the target models periodically
                     if episode_steps % 4 == 0:
-                        soft_update(self.target_model, self.model)
-                                
+                        soft_update(self.target_model_1, self.model_1)
+                        soft_update(self.target_model_2, self.model_2)
 
+            self.model_1.save_the_model(filename='models/dqn1.pt')
+            self.model_2.save_the_model(filename='models/dqn2.pt')
 
-            self.model.save_the_model()
-            
             writer.add_scalar('Score', episode_reward, episode)
             writer.add_scalar('Epsilon', epsilon, episode)
 
-
             if epsilon > min_epsilon:
                 epsilon *= epsilon_decay
-            
+
             episode_time = time.time() - episode_start_time
-            
 
             print(f"Completed episode {episode} with score {episode_reward}")
             print(f"Episode Time: {episode_time:1f} seconds")
             print(f"Episode Steps: {episode_steps}")
-            
